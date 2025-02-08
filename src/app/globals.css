@@ -3,19 +3,176 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 10, 10, 20;
+  --accent-primary: 64, 224, 208;
+  --accent-secondary: 147, 51, 234;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply antialiased;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    @apply bg-black;
+    height: 100%;
+  }
+
+  body {
+    @apply min-h-screen text-[rgb(var(--foreground-rgb))] bg-black;
+    background: linear-gradient(
+      to bottom,
+      rgb(var(--background-start-rgb)),
+      rgb(var(--background-end-rgb))
+    ) fixed;
+    overscroll-behavior: none;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-6xl;
+  }
+
+  h2 {
+    @apply text-3xl md:text-4xl lg:text-5xl;
+  }
+
+  h3 {
+    @apply text-2xl md:text-3xl lg:text-4xl;
+  }
+
+  /* Smooth scrolling for anchor links */
+  :target {
+    scroll-margin-top: 100px;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .neon-glow {
+    text-shadow: 0 0 10px rgba(var(--accent-primary), 0.5),
+                 0 0 20px rgba(var(--accent-primary), 0.3),
+                 0 0 30px rgba(var(--accent-primary), 0.1);
+  }
+
+  .neon-border {
+    box-shadow: 0 0 10px rgba(var(--accent-primary), 0.5),
+                inset 0 0 10px rgba(var(--accent-primary), 0.5);
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))];
+  }
+
+  .button-primary {
+    @apply px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))]
+           text-white font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg
+           hover:shadow-[rgb(var(--accent-primary))]/20 active:scale-95;
+  }
+
+  .button-secondary {
+    @apply px-6 py-3 rounded-lg border-2 border-[rgb(var(--accent-primary))] text-white
+           font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg
+           hover:shadow-[rgb(var(--accent-primary))]/20 hover:bg-[rgb(var(--accent-primary))]/10
+           active:scale-95;
+  }
+
+  .card {
+    @apply relative bg-black/50 backdrop-blur-lg rounded-xl p-6 border border-white/10
+           hover:border-[rgb(var(--accent-primary))]/50 transition-all duration-300
+           hover:shadow-lg hover:shadow-[rgb(var(--accent-primary))]/5;
+  }
+
+  .glass-effect {
+    @apply bg-white/5 backdrop-blur-lg border border-white/10
+           hover:border-[rgb(var(--accent-primary))]/30 transition-all duration-300;
+  }
+
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-lg
+           hover:shadow-[rgb(var(--accent-primary))]/10;
+  }
+
+  .gradient-border {
+    @apply relative rounded-xl;
+    background: linear-gradient(to right, rgb(var(--accent-primary)), rgb(var(--accent-secondary)));
+    padding: 1px;
+  }
+
+  .gradient-border > * {
+    @apply bg-black rounded-xl;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-black/50;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-[rgb(var(--accent-primary))]/50 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-[rgb(var(--accent-primary))]/70;
 }
