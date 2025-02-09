@@ -65,7 +65,7 @@ export default function TestimonialsSection() {
     const timer = setInterval(() => {
       setDirection(1);
       setCurrent((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
+    }, 3000);
 
     return () => clearInterval(timer);
   }, [isAutoPlaying]);
@@ -74,7 +74,7 @@ export default function TestimonialsSection() {
     enter: (direction: number) => ({
       x: direction > 0 ? 1000 : -1000,
       opacity: 0,
-      scale: 0.9
+      scale: 0.95
     }),
     center: {
       zIndex: 1,
@@ -86,7 +86,7 @@ export default function TestimonialsSection() {
       zIndex: 0,
       x: direction < 0 ? 1000 : -1000,
       opacity: 0,
-      scale: 0.9
+      scale: 0.95
     })
   };
 
@@ -130,9 +130,9 @@ export default function TestimonialsSection() {
               animate="center"
               exit="exit"
               transition={{
-                x: { type: "spring", stiffness: 300, damping: 30 },
-                opacity: { duration: 0.2 },
-                scale: { duration: 0.2 }
+                x: { type: "spring", stiffness: 400, damping: 35 },
+                opacity: { duration: 0.15 },
+                scale: { duration: 0.15 }
               }}
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}

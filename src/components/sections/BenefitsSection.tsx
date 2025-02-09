@@ -56,22 +56,31 @@ const BenefitCard = ({ benefit, index }: { benefit: typeof benefits[0], index: n
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
+      className="relative group"
     >
-      <div className="card group h-full">
-        <div className="relative mb-6">
-          <benefit.icon className="h-12 w-12 text-[rgb(var(--accent-primary))]" />
-          <div className={`absolute inset-0 bg-gradient-to-br ${benefit.color} opacity-20 rounded-full blur-xl group-hover:opacity-30 transition-opacity duration-300`} />
+      <div className="card h-full backdrop-blur-sm border border-white/10 hover:border-[rgb(var(--accent-primary))]/50 p-8">
+        {/* Gradient Background */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${benefit.color} opacity-5 group-hover:opacity-10 transition-all duration-300 rounded-xl`} />
+        
+        {/* Icon Container with Glow */}
+        <div className="relative mb-6 p-4 rounded-xl bg-black/20 inline-block">
+          <div className={`absolute inset-0 bg-gradient-to-br ${benefit.color} opacity-10 rounded-xl blur-xl group-hover:opacity-20 transition-all duration-300`} />
+          <benefit.icon className={`h-12 w-12 relative z-10 text-white group-hover:text-[rgb(var(--accent-primary))] transition-colors duration-300`} />
         </div>
         
-        <h3 className="text-xl font-bold mb-4 gradient-text">
-          {benefit.title}
+        <h3 className="text-xl font-bold mb-4">
+          <span className={`bg-gradient-to-r ${benefit.color} bg-clip-text text-transparent`}>
+            {benefit.title}
+          </span>
         </h3>
         
-        <p className="text-gray-400">
+        <p className="text-gray-300 group-hover:text-white transition-colors duration-300">
           {benefit.description}
         </p>
         
-        <div className={`absolute inset-0 bg-gradient-to-br ${benefit.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300 rounded-xl`} />
+        {/* Hover Effects */}
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[rgb(var(--accent-primary))]/5 opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-xl" />
+        <div className="absolute -inset-0.5 bg-gradient-to-br from-transparent to-[rgb(var(--accent-primary))]/30 opacity-0 group-hover:opacity-100 blur-xl transition-all duration-300 rounded-xl -z-10" />
       </div>
     </motion.div>
   );
@@ -79,7 +88,7 @@ const BenefitCard = ({ benefit, index }: { benefit: typeof benefits[0], index: n
 
 export default function BenefitsSection() {
   return (
-    <section id="benefits" className="relative py-20">
+    <section id="benefits" className="relative py-32">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -88,8 +97,10 @@ export default function BenefitsSection() {
           transition={{ duration: 0.5 }}
           className="text-center mb-16"
         >
-          <h2 className="gradient-text mb-6">
-            Why Choose BlockCreative
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
+            <span className="bg-gradient-to-r from-[rgb(var(--accent-primary))] via-purple-500 to-[rgb(var(--accent-secondary))] bg-clip-text text-transparent">
+              Why Choose BlockCreative
+            </span>
           </h2>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">
             Our bounty-based platform revolutionizes scriptwriting by combining
@@ -108,10 +119,11 @@ export default function BenefitsSection() {
         </div>
       </div>
 
-      {/* Background Elements */}
+      {/* Animated Background Elements */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 -left-1/4 w-1/2 h-1/2 bg-[rgb(var(--accent-primary))]/20 rounded-full mix-blend-multiply filter blur-[128px] animate-blob" />
         <div className="absolute bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-[rgb(var(--accent-secondary))]/20 rounded-full mix-blend-multiply filter blur-[128px] animate-blob animation-delay-2000" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/2 h-1/2 bg-purple-500/20 rounded-full mix-blend-multiply filter blur-[128px] animate-blob animation-delay-4000" />
       </div>
     </section>
   );
