@@ -20,6 +20,14 @@ const nextConfig = {
     scrollRestoration: true,
     optimizePackageImports: ['@heroicons/react', 'framer-motion'],
   },
+  // App Icon configuration
+  webpack(config) {
+    config.module.rules.push({
+      test: /\.svg$/,
+      use: ['@svgr/webpack'],
+    });
+    return config;
+  },
 };
 
 module.exports = nextConfig; 

@@ -1,0 +1,17 @@
+{
+  "name": "BlockCreative",
+  "short_name": "BlockCreative",
+  "description": "AI-Powered Blockchain Scriptwriting Platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#40E0D0",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+} 
