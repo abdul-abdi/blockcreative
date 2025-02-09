@@ -11,6 +11,7 @@ import {
   ArrowTrendingUpIcon,
   ClockIcon,
   PlusIcon,
+  ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
@@ -274,8 +275,13 @@ export default function WriterDashboard() {
                     <h3 className="font-semibold text-white text-sm sm:text-base mb-2">{selectedSubmission.title}</h3>
                     <p className="text-xs sm:text-sm text-gray-400">{selectedSubmission.project}</p>
                   </div>
-                  <div className="aspect-square w-full max-w-md mx-auto">
-                    <AIAnalysisChart analysisData={selectedSubmission.analysis} />
+                  <div className="w-full">
+                    <div className="aspect-square">
+                      <AIAnalysisChart 
+                        analysisData={selectedSubmission.analysis}
+                        className="w-full h-full"
+                      />
+                    </div>
                   </div>
                 </>
               )}
@@ -295,9 +301,10 @@ export default function WriterDashboard() {
               <h2 className="text-xl font-bold text-white">Available Projects</h2>
               <Link
                 href="/writer/projects"
-                className="text-sm text-[rgb(var(--accent-primary))] hover:underline"
+                className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm font-medium hover:from-purple-600 hover:to-indigo-600 transition-all hover:scale-105"
               >
-                View All Projects →
+                View All Projects
+                <ArrowRightIcon className="w-4 h-4" />
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -305,7 +312,7 @@ export default function WriterDashboard() {
                 <div key={project.id} className="bg-white/5 rounded-lg p-4 hover:bg-white/10 transition-colors">
                   <h3 className="font-semibold text-white text-sm sm:text-base mb-2">{project.title}</h3>
                   <p className="text-xs sm:text-sm text-[rgb(var(--accent-primary))] mb-4">{project.studio}</p>
-                  <div className="space-y-2 mb-4">
+                  <div className="space-y-2 mb-6">
                     <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
                       <CurrencyDollarIcon className="w-4 h-4" />
                       <span>{project.budget}</span>
@@ -315,10 +322,10 @@ export default function WriterDashboard() {
                       <span>Due: {project.deadline}</span>
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col gap-3">
                     <Link
                       href={`/writer/projects/${project.id}`}
-                      className="text-xs sm:text-sm text-[rgb(var(--accent-primary))] hover:underline text-center sm:text-left"
+                      className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs sm:text-sm font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all hover:scale-105"
                     >
                       View Details
                     </Link>

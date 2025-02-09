@@ -264,7 +264,7 @@ export default function ProducerDashboard() {
                 <h2 className="text-xl font-bold text-white">Active Projects</h2>
                 <Link
                   href="/producer/projects"
-                  className="text-[rgb(var(--accent-primary))] hover:underline flex items-center gap-1"
+                  className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-medium hover:from-purple-600 hover:to-indigo-600 transition-all hover:scale-105"
                 >
                   View All
                   <ArrowRightIcon className="w-4 h-4" />
