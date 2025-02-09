@@ -145,14 +145,14 @@ const ProcessSection = () => {
                 className="relative mb-20 lg:mb-32"
               >
                 <div className={`flex flex-col lg:flex-row ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-8 lg:gap-16`}>
-                  {/* Step Number */}
-                  <div className="absolute left-1/2 lg:left-auto lg:right-1/2 transform -translate-x-1/2 -top-4 lg:-top-2 w-8 h-8 rounded-full bg-black border-2 border-[rgb(var(--accent-primary))] z-10 hidden lg:flex items-center justify-center">
-                    <span className="text-[rgb(var(--accent-primary))] font-bold">{index + 1}</span>
-                  </div>
-
                   {/* Process Card */}
-                  <div className={`w-full lg:w-1/2 card p-8 bg-gradient-to-br ${step.color}/10 hover:${step.color}/20 transition-all duration-300`}>
-                    <div className="flex items-start gap-4 mb-6">
+                  <div className={`w-full lg:w-1/2 card p-8 bg-gradient-to-br ${step.color}/10 hover:${step.color}/20 transition-all duration-300 relative`}>
+                    {/* Step Number Badge */}
+                    <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-black flex items-center justify-center border-2 border-[rgb(var(--accent-primary))] z-10">
+                      <span className="text-[rgb(var(--accent-primary))] font-bold text-xl">{index + 1}</span>
+                    </div>
+
+                    <div className="flex items-start gap-4 mb-6 mt-4">
                       <step.icon className="w-8 h-8 text-[rgb(var(--accent-primary))]" />
                       <div>
                         <h3 className="text-2xl font-bold gradient-text">{step.title}</h3>
@@ -175,7 +175,7 @@ const ProcessSection = () => {
                     </div>
                   </div>
 
-                  {/* Innovation Card */}
+                  {/* Technology Card */}
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     whileInView={{ opacity: 1, scale: 1 }}
@@ -191,7 +191,7 @@ const ProcessSection = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 mt-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
                       {step.innovation.features.map((feature, i) => (
                         <div 
                           key={i}

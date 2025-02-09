@@ -14,7 +14,7 @@ const navigation = [
 ];
 
 const authLinks = [
-  { name: 'Sign In', href: '/signin' },
+  { name: 'Sign In', href: '/signin', isPrimary: false },
   { name: 'Get Started', href: '/signup', isPrimary: true },
 ];
 
@@ -81,10 +81,28 @@ export default function Navbar() {
             {/* Logo */}
             <Link 
               href="/" 
-              className="text-xl md:text-2xl font-bold gradient-text hover:scale-105 transition-transform"
+              className="flex items-center space-x-2 text-xl md:text-2xl font-bold gradient-text hover:scale-105 transition-transform"
               onClick={() => scrollToSection('#top')}
             >
-              BlockCreative
+              <svg width="32" height="32" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
+                <defs>
+                  <linearGradient id="navGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style={{ stopColor: 'rgb(var(--accent-primary))' }} />
+                    <stop offset="100%" style={{ stopColor: 'rgb(var(--accent-secondary))' }} />
+                  </linearGradient>
+                </defs>
+                <path d="M256 96L384 176V336L256 416L128 336V176L256 96Z" 
+                      stroke="url(#navGradient)" 
+                      strokeWidth="24" 
+                      strokeLinejoin="round"
+                      fill="none"/>
+                <path d="M320 192L240 272L224 336L288 320L368 240L320 192Z" 
+                      fill="url(#navGradient)"/>
+                <circle cx="208" cy="352" r="8" fill="url(#navGradient)"/>
+                <circle cx="192" cy="368" r="6" fill="url(#navGradient)"/>
+                <circle cx="184" cy="384" r="4" fill="url(#navGradient)"/>
+              </svg>
+              <span>BlockCreative</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -107,7 +125,9 @@ export default function Navbar() {
                   <Link 
                     key={link.name}
                     href={link.href}
-                    className={link.isPrimary ? 'button-primary text-sm lg:text-base whitespace-nowrap' : 'text-sm lg:text-base text-gray-300 hover:text-white transition-colors'}
+                    className={link.isPrimary 
+                      ? 'button-primary text-sm lg:text-base whitespace-nowrap' 
+                      : 'px-4 py-2 text-sm lg:text-base text-white transition-all rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 hover:scale-105'}
                   >
                     {link.name}
                   </Link>
@@ -160,7 +180,9 @@ export default function Navbar() {
                     <Link 
                       key={link.name}
                       href={link.href}
-                      className={link.isPrimary ? 'button-primary text-lg w-full max-w-[200px] text-center' : 'text-lg text-gray-300 hover:text-white transition-colors'}
+                      className={link.isPrimary 
+                        ? 'button-primary text-lg w-full max-w-[200px] text-center' 
+                        : 'text-lg text-white w-full max-w-[200px] text-center px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 transition-all hover:scale-105'}
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       {link.name}

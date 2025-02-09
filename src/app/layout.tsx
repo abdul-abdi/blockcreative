@@ -1,8 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
+
+export const viewport: Viewport = {
+  themeColor: "#40E0D0",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false
+};
 
 export const metadata: Metadata = {
   title: "BlockCreative | AI-Powered Blockchain Scriptwriting Platform",
@@ -16,8 +24,7 @@ export const metadata: Metadata = {
     apple: [
       { url: "/icon.svg", type: "image/svg+xml" }
     ]
-  },
-  themeColor: "#40E0D0"
+  }
 };
 
 export default function RootLayout({
