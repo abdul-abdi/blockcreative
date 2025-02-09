@@ -184,7 +184,7 @@ export default function ProducerDashboard() {
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-3xl font-bold text-white mb-2"
+              className="text-2xl sm:text-3xl font-bold text-white mb-2"
             >
               Welcome back, <span className="gradient-text">Universal Studios</span> 🎬
             </motion.h1>
@@ -192,7 +192,7 @@ export default function ProducerDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-gray-400"
+              className="text-sm sm:text-base text-gray-400"
             >
               Discover exceptional scripts and connect with talented writers.
             </motion.p>
@@ -201,18 +201,18 @@ export default function ProducerDashboard() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="flex gap-4"
+            className="flex flex-col sm:flex-row w-full sm:w-auto gap-3 sm:gap-4"
           >
             <Link
               href="/producer/writers"
-              className="flex items-center gap-2 px-6 py-3 rounded-lg bg-white/10 text-white font-semibold hover:bg-white/20 transition-all hover:scale-105"
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-white/10 text-white font-semibold hover:bg-white/20 transition-all hover:scale-105"
             >
               <UserGroupIcon className="w-5 h-5" />
               <span>Find Writers</span>
             </Link>
             <Link
               href="/producer/projects/new"
-              className="flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all hover:scale-105 shadow-lg"
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all hover:scale-105 shadow-lg"
             >
               <PlusIcon className="w-5 h-5" />
               <span>New Project</span>
@@ -221,7 +221,7 @@ export default function ProducerDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {stats.map((stat, index) => (
             <motion.div
               key={stat.name}
@@ -296,18 +296,18 @@ export default function ProducerDashboard() {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                       <div>
-                        <p className="text-sm text-gray-400">Submissions</p>
-                        <p className="text-lg font-semibold text-white">{project.submissions}</p>
+                        <p className="text-xs sm:text-sm text-gray-400">Submissions</p>
+                        <p className="text-base sm:text-lg font-semibold text-white">{project.submissions}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-400">Top Score</p>
-                        <p className="text-lg font-semibold text-white">{project.topScore}</p>
+                        <p className="text-xs sm:text-sm text-gray-400">Top Score</p>
+                        <p className="text-base sm:text-lg font-semibold text-white">{project.topScore}</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-400">Top Scripts</p>
-                        <p className="text-lg font-semibold text-white">{project.recentSubmissions.length}</p>
+                      <div className="col-span-2 sm:col-span-1">
+                        <p className="text-xs sm:text-sm text-gray-400">Top Scripts</p>
+                        <p className="text-base sm:text-lg font-semibold text-white">{project.recentSubmissions.length}</p>
                       </div>
                     </div>
                   </div>
@@ -384,12 +384,12 @@ export default function ProducerDashboard() {
                     Review and select the winning script from the top-ranked submissions.
                   </p>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
                   {selectedProject.recentSubmissions.map((submission, index) => (
                     <button
                       key={submission.id}
                       onClick={() => setSelectedSubmission(submission)}
-                      className={`px-4 py-2 rounded-lg transition-all ${
+                      className={`px-3 sm:px-4 py-2 rounded-lg transition-all text-sm sm:text-base ${
                         selectedSubmission.id === submission.id
                           ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
                           : 'bg-white/5 text-gray-400 hover:bg-white/10'
@@ -401,36 +401,38 @@ export default function ProducerDashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+                <div className="lg:col-span-2 overflow-x-auto">
                   <AIAnalysisChart analysisData={selectedSubmission.analysis} />
                 </div>
                 
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">
                       {selectedSubmission.title}
                     </h3>
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       <div>
-                        <p className="text-sm text-gray-400">Writer</p>
-                        <p className="text-white">{selectedSubmission.writer}</p>
+                        <p className="text-xs sm:text-sm text-gray-400">Writer</p>
+                        <p className="text-sm sm:text-base text-white">{selectedSubmission.writer}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-400">Overall Score</p>
-                        <p className="text-2xl font-bold text-[rgb(var(--accent-primary))]">
+                        <p className="text-xs sm:text-sm text-gray-400">Overall Score</p>
+                        <p className="text-xl sm:text-2xl font-bold text-[rgb(var(--accent-primary))]">
                           {selectedSubmission.score}
                         </p>
                       </div>
                     </div>
                   </div>
                   
-                  <button className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all hover:scale-105 shadow-lg">
-                    Select as Winner
-                  </button>
-                  <button className="w-full px-6 py-3 rounded-lg bg-white/10 text-white font-semibold hover:bg-white/20 transition-all">
-                    View Full Script
-                  </button>
+                  <div className="flex flex-col sm:flex-row lg:flex-col gap-3">
+                    <button className="w-full px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all hover:scale-105 shadow-lg text-sm sm:text-base">
+                      Select as Winner
+                    </button>
+                    <button className="w-full px-4 sm:px-6 py-3 rounded-lg bg-white/10 text-white font-semibold hover:bg-white/20 transition-all text-sm sm:text-base">
+                      View Full Script
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

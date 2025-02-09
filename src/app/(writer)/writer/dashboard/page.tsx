@@ -156,7 +156,7 @@ export default function WriterDashboard() {
             <motion.h1 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-3xl font-bold text-white mb-2"
+              className="text-2xl sm:text-3xl font-bold text-white mb-2"
             >
               Welcome back, <span className="gradient-text">Sarah</span> 👋
             </motion.h1>
@@ -164,7 +164,7 @@ export default function WriterDashboard() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="text-gray-400"
+              className="text-sm sm:text-base text-gray-400"
             >
               Your creative journey continues. Let's make something amazing today.
             </motion.p>
@@ -173,10 +173,11 @@ export default function WriterDashboard() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
+            className="w-full sm:w-auto"
           >
             <Link
               href="/writer/submit"
-              className="flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold hover:from-purple-600 hover:to-indigo-600 transition-all hover:scale-105 shadow-lg"
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold hover:from-purple-600 hover:to-indigo-600 transition-all hover:scale-105 shadow-lg"
             >
               <PlusIcon className="w-5 h-5" />
               <span>Submit a Script</span>
@@ -185,7 +186,7 @@ export default function WriterDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {stats.map((stat, index) => (
             <motion.div
               key={stat.name}
@@ -232,10 +233,10 @@ export default function WriterDashboard() {
                     className="p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
                     onClick={() => setSelectedSubmission(submission)}
                   >
-                    <div className="flex justify-between items-start mb-2">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
                       <div>
-                        <h3 className="font-semibold text-white">{submission.title}</h3>
-                        <p className="text-sm text-gray-400">{submission.project}</p>
+                        <h3 className="font-semibold text-white text-sm sm:text-base">{submission.title}</h3>
+                        <p className="text-xs sm:text-sm text-gray-400">{submission.project}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded-full text-xs ${
@@ -248,7 +249,7 @@ export default function WriterDashboard() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex justify-between text-sm text-gray-400">
+                    <div className="flex flex-col sm:flex-row justify-between text-xs sm:text-sm text-gray-400 gap-2">
                       <span>{submission.studio}</span>
                       <span>Submitted: {submission.submitted}</span>
                     </div>
@@ -270,10 +271,10 @@ export default function WriterDashboard() {
               {selectedSubmission && (
                 <>
                   <div className="mb-6">
-                    <h3 className="font-semibold text-white mb-2">{selectedSubmission.title}</h3>
-                    <p className="text-sm text-gray-400">{selectedSubmission.project}</p>
+                    <h3 className="font-semibold text-white text-sm sm:text-base mb-2">{selectedSubmission.title}</h3>
+                    <p className="text-xs sm:text-sm text-gray-400">{selectedSubmission.project}</p>
                   </div>
-                  <div className="aspect-square">
+                  <div className="aspect-square w-full max-w-md mx-auto">
                     <AIAnalysisChart analysisData={selectedSubmission.analysis} />
                   </div>
                 </>
@@ -299,31 +300,31 @@ export default function WriterDashboard() {
                 View All Projects →
               </Link>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {availableProjects.map((project) => (
                 <div key={project.id} className="bg-white/5 rounded-lg p-4 hover:bg-white/10 transition-colors">
-                  <h3 className="font-semibold text-white mb-2">{project.title}</h3>
-                  <p className="text-sm text-[rgb(var(--accent-primary))] mb-4">{project.studio}</p>
+                  <h3 className="font-semibold text-white text-sm sm:text-base mb-2">{project.title}</h3>
+                  <p className="text-xs sm:text-sm text-[rgb(var(--accent-primary))] mb-4">{project.studio}</p>
                   <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
                       <CurrencyDollarIcon className="w-4 h-4" />
                       <span>{project.budget}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
                       <ClockIcon className="w-4 h-4" />
                       <span>Due: {project.deadline}</span>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Link
                       href={`/writer/projects/${project.id}`}
-                      className="text-sm text-[rgb(var(--accent-primary))] hover:underline"
+                      className="text-xs sm:text-sm text-[rgb(var(--accent-primary))] hover:underline text-center sm:text-left"
                     >
                       View Details
                     </Link>
                     <Link
                       href={`/writer/submit?project=${project.id}`}
-                      className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm font-semibold rounded-lg hover:from-purple-600 hover:to-indigo-600 transition-all hover:scale-105"
+                      className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-lg hover:from-purple-600 hover:to-indigo-600 transition-all hover:scale-105"
                     >
                       <PlusIcon className="w-4 h-4" />
                       Submit Script
