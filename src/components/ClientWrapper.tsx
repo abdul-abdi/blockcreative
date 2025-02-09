@@ -1,81 +1,50 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-import Loading from './Loading';
-
-// Dynamically import components with proper loading states
-const Navbar = dynamic(() => import('./Navbar'), {
-  ssr: false,
-  loading: () => <Loading />
-});
-
-const HeroSection = dynamic(() => import('./sections/HeroSection'), {
-  ssr: false,
-  loading: () => <Loading />
-});
-
-const BenefitsSection = dynamic(() => import('./sections/BenefitsSection'), {
-  loading: () => <Loading />
-});
-
-const ProcessSection = dynamic(() => import('./sections/ProcessSection'), {
-  loading: () => <Loading />
-});
-
-const FeaturesSection = dynamic(() => import('./sections/FeaturesSection'), {
-  loading: () => <Loading />
-});
-
-const TechnologySection = dynamic(() => import('./sections/TechnologySection'), {
-  loading: () => <Loading />
-});
-
-const PricingSection = dynamic(() => import('./sections/PricingSection'), {
-  loading: () => <Loading />
-});
-
-const TestimonialsSection = dynamic(() => import('./sections/TestimonialsSection'), {
-  loading: () => <Loading />
-});
-
-const CTASection = dynamic(() => import('./sections/CTASection'), {
-  loading: () => <Loading />
-});
-
-const Footer = dynamic(() => import('./sections/Footer'), {
-  loading: () => <Loading />
-});
+import { useEffect, useState } from 'react';
+import Navbar from './Navbar';
+import HeroSection from './sections/HeroSection';
+import BenefitsSection from './sections/BenefitsSection';
+import ProcessSection from './sections/ProcessSection';
+import FeaturesSection from './sections/FeaturesSection';
+import TestimonialsSection from './sections/TestimonialsSection';
+import StorySection from './sections/StorySection';
+import CTASection from './sections/CTASection';
+import Footer from './sections/Footer';
 
 export default function ClientWrapper() {
-  const [mounted, setMounted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    setIsClient(true);
   }, []);
 
-  if (!mounted) {
-    return <Loading />;
-  }
-
   return (
-    <>
-      <Navbar />
-      <main className="min-h-screen">
-        <Suspense fallback={<Loading />}>
-          <HeroSection />
-          <BenefitsSection />
-          <ProcessSection />
-          <FeaturesSection />
-          <TechnologySection />
-          <PricingSection />
-          <TestimonialsSection />
-          <CTASection />
-        </Suspense>
-      </main>
-      <Suspense fallback={<Loading />}>
-        <Footer />
-      </Suspense>
-    </>
+    <div className="flex min-h-screen flex-col bg-black">
+      {isClient && (
+        <>
+          <Navbar />
+          <main className="flex-grow">
+            <HeroSection />
+            <div id="story">
+              <StorySection />
+            </div>
+            <div id="benefits">
+              <BenefitsSection />
+            </div>
+            <div id="process">
+              <ProcessSection />
+            </div>
+            <div id="features">
+              <FeaturesSection />
+            </div>
+            <div id="testimonials">
+              <TestimonialsSection />
+            </div>
+            <CTASection />
+          </main>
+          <Footer />
+        </>
+      )}
+    </div>
   );
 } 

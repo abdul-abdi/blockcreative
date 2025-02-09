@@ -43,10 +43,20 @@ export default function HeroSection() {
             className="text-center lg:text-left"
           >
             <motion.h1 
-              className="gradient-text neon-glow mb-4 md:mb-6 text-4xl md:text-5xl lg:text-6xl font-bold leading-tight"
+              className="mb-4 md:mb-6 text-4xl md:text-5xl lg:text-6xl font-bold leading-tight bg-gradient-to-r from-cyan-400 via-teal-400 to-emerald-400 bg-clip-text text-transparent neon-glow"
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              animate={{ 
+                opacity: 1,
+                y: [0, -8, 0]
+              }}
+              transition={{
+                duration: 3,
+                y: {
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  ease: "easeInOut"
+                }
+              }}
             >
               Revolutionize Scriptwriting with Blockchain & AI
             </motion.h1>
@@ -57,8 +67,8 @@ export default function HeroSection() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
             >
-              Empowering producers and scriptwriters to create award-winning content
-              securely and transparently on the blockchain.
+              Producers post bounties, writers submit creative ideas, and our AI ranks the best submissions. 
+              All secured and rewarded through blockchain, creating the future of scriptwriting collaboration.
             </motion.p>
 
             <motion.div 
@@ -86,16 +96,16 @@ export default function HeroSection() {
               className="grid grid-cols-3 gap-2 md:gap-4 mt-8 md:mt-12"
             >
               <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold gradient-text">500+</div>
-                <div className="text-xs md:text-sm text-gray-400">Scripts Submitted</div>
+                <div className="text-2xl md:text-3xl font-bold gradient-text">1K+</div>
+                <div className="text-xs md:text-sm text-gray-400">Active Bounties</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold gradient-text">50+</div>
-                <div className="text-xs md:text-sm text-gray-400">Production Studios</div>
+                <div className="text-2xl md:text-3xl font-bold gradient-text">5K+</div>
+                <div className="text-xs md:text-sm text-gray-400">Script Submissions</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl md:text-3xl font-bold gradient-text">$2M+</div>
-                <div className="text-xs md:text-sm text-gray-400">Writer Earnings</div>
+                <div className="text-2xl md:text-3xl font-bold gradient-text">$2.5M+</div>
+                <div className="text-xs md:text-sm text-gray-400">Bounties Awarded</div>
               </div>
             </motion.div>
           </motion.div>

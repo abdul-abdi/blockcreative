@@ -4,20 +4,20 @@ import { BeakerIcon, LockClosedIcon, UserGroupIcon } from '@heroicons/react/24/o
 const features = [
   {
     icon: BeakerIcon,
-    title: 'AI-Powered Ranking',
-    description: 'Intelligent scoring that highlights creative brilliance.',
+    title: 'AI-Powered Selection',
+    description: 'Advanced algorithms rank submissions based on creativity, originality, and adherence to bounty guidelines.',
     color: 'from-cyan-500 to-blue-500',
   },
   {
     icon: LockClosedIcon,
-    title: 'Blockchain Security',
-    description: 'Immutable, timestamped submissions for full transparency.',
+    title: 'Secure Bounty System',
+    description: 'Smart contracts ensure transparent bounty distribution and protect intellectual property rights.',
     color: 'from-purple-500 to-pink-500',
   },
   {
     icon: UserGroupIcon,
-    title: 'Decentralized Collaboration',
-    description: 'A collaborative ecosystem where every contribution is rewarded.',
+    title: 'Creative Marketplace',
+    description: 'A dynamic ecosystem where producers post bounties and writers compete with their best creative work.',
     color: 'from-green-500 to-emerald-500',
   },
 ];
@@ -72,11 +72,11 @@ const FeaturesSection = () => {
           className="text-center mb-16"
         >
           <h2 className="gradient-text mb-6">
-            Powered by Advanced Technology
+            Powered by Innovation
           </h2>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-            Experience the perfect blend of artificial intelligence and blockchain technology
-            in our revolutionary scriptwriting platform.
+            Our platform combines AI-powered ranking with blockchain technology to create
+            the most transparent and rewarding scriptwriting marketplace.
           </p>
         </motion.div>
 

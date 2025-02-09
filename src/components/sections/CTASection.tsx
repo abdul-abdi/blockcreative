@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import Link from 'next/link';
 
 const CTASection = () => {
   const [email, setEmail] = useState('');
@@ -98,12 +99,12 @@ const CTASection = () => {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="flex flex-col sm:flex-row justify-center gap-4 mt-12"
             >
-              <button className="button-primary">
+              <Link href="/signup?role=producer" className="button-primary">
                 Become a Producer
-              </button>
-              <button className="button-secondary">
+              </Link>
+              <Link href="/signup?role=writer" className="button-secondary">
                 Become a Scriptwriter
-              </button>
+              </Link>
             </motion.div>
           </div>
         </div>

@@ -13,38 +13,38 @@ import {
 const benefits = [
   {
     icon: ShieldCheckIcon,
-    title: 'Secure IP Protection',
-    description: 'Your intellectual property is protected through blockchain technology and smart contracts.',
+    title: 'Protected Submissions',
+    description: 'Every script submission is timestamped and secured through blockchain technology.',
     color: 'from-blue-500 to-cyan-500'
   },
   {
     icon: CurrencyDollarIcon,
-    title: 'Fair Compensation',
-    description: 'Automated payment distribution ensures writers receive fair compensation for their work.',
+    title: 'Guaranteed Rewards',
+    description: 'Smart contracts ensure winning submissions receive bounties automatically.',
     color: 'from-green-500 to-emerald-500'
   },
   {
     icon: ClockIcon,
-    title: 'Fast Turnaround',
-    description: 'AI-powered ranking system accelerates the script evaluation process.',
+    title: 'Efficient Selection',
+    description: 'AI rapidly evaluates and ranks submissions based on bounty guidelines.',
     color: 'from-purple-500 to-pink-500'
   },
   {
     icon: UserGroupIcon,
-    title: 'Global Network',
-    description: 'Connect with producers and writers from around the world.',
+    title: 'Direct Connections',
+    description: 'Writers connect directly with producers through bounty submissions.',
     color: 'from-orange-500 to-red-500'
   },
   {
     icon: ChartBarIcon,
-    title: 'Data Insights',
-    description: 'Get valuable insights into script performance and market trends.',
+    title: 'Creative Analytics',
+    description: 'Get insights on how your submissions align with bounty requirements.',
     color: 'from-indigo-500 to-purple-500'
   },
   {
     icon: DocumentCheckIcon,
-    title: 'Quality Assurance',
-    description: 'AI-driven analysis ensures high-quality script submissions.',
+    title: 'Fair Competition',
+    description: 'AI ensures unbiased ranking based purely on creative merit and guidelines.',
     color: 'from-pink-500 to-rose-500'
   }
 ];
@@ -92,8 +92,8 @@ export default function BenefitsSection() {
             Why Choose BlockCreative
           </h2>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-            Experience the future of scriptwriting with our innovative platform
-            that combines blockchain security with AI-powered insights.
+            Our bounty-based platform revolutionizes scriptwriting by combining
+            AI-powered selection with blockchain-secured rewards.
           </p>
         </motion.div>
 
