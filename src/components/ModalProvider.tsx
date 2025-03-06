@@ -1,7 +1,7 @@
 'use client'
 
 import React, { ReactNode } from 'react'
-import ContextProvider from '@/context'
+import ContextProvider, { appKitModal } from '@/context'
 
 export function ModalProvider({ children }: { children: ReactNode }) {
   return (
@@ -10,3 +10,6 @@ export function ModalProvider({ children }: { children: ReactNode }) {
     </ContextProvider>
   )
 }
+
+// Export the modal for use in other components
+export { appKitModal }

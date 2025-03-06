@@ -47,13 +47,36 @@ interface TimelineData {
 }
 
 interface Props {
-  analysisData: AIAnalysisData;
+  analysisData?: AIAnalysisData;
   timelineData?: TimelineData;
   showTimeline?: boolean;
   className?: string;
 }
 
-const AIAnalysisChart = ({ analysisData, timelineData, showTimeline = false, className = '' }: Props) => {
+// Default analysis data for when no data is provided
+const defaultAnalysisData: AIAnalysisData = {
+  plotStrength: 85,
+  characterDevelopment: 78,
+  marketPotential: 82,
+  uniqueness: 88,
+  pacing: 75,
+  dialogue: 80,
+  structure: 76,
+  theme: 85
+};
+
+// Default timeline data
+const defaultTimelineData: TimelineData = {
+  timestamps: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+  scores: [65, 72, 78, 75, 82, 85]
+};
+
+const AIAnalysisChart = ({ 
+  analysisData = defaultAnalysisData,
+  timelineData = defaultTimelineData, 
+  showTimeline = false, 
+  className = '' 
+}: Props) => {
   // Radar chart data
   const radarData = {
     labels: [

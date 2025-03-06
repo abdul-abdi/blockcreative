@@ -10,6 +10,7 @@ import TestimonialsSection from './sections/TestimonialsSection';
 import StorySection from './sections/StorySection';
 import CTASection from './sections/CTASection';
 import Footer from './sections/Footer';
+import { ModalProvider } from './ModalProvider';
 
 export default function ClientWrapper() {
   const [isClient, setIsClient] = useState(false);
@@ -21,7 +22,7 @@ export default function ClientWrapper() {
   return (
     <div className="flex min-h-screen flex-col bg-black">
       {isClient && (
-        <>
+        <ModalProvider>
           <Navbar />
           <main className="flex-grow">
             <HeroSection />
@@ -43,7 +44,7 @@ export default function ClientWrapper() {
             <CTASection />
           </main>
           <Footer />
-        </>
+        </ModalProvider>
       )}
     </div>
   );

@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
-import { ModalProvider } from './ModalProvider';
+import { appKitModal } from '@/context';
+import { useAccount } from 'wagmi';
+import { useRouter } from 'next/navigation';
 
 const navigation = [
   { name: 'Story', href: '#story' },
@@ -14,16 +16,13 @@ const navigation = [
   { name: 'Testimonials', href: '#testimonials' },
 ];
 
-const authLinks = [
-  { name: 'Sign In', href: '/signin', isPrimary: false },
-  { name: 'Get Started', href: '/signup', isPrimary: true },
-];
-
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
-
+  const { isConnected, address } = useAccount();
+  const router = useRouter();
+  
   // Memoize the scroll handler
   const handleScroll = useCallback(() => {
     setIsScrolled(window.scrollY > 10);
@@ -48,107 +47,123 @@ export default function Navbar() {
 
   useEffect(() => {
     window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Initial check
     return () => window.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
-  // Handle smooth scrolling
-  const scrollToSection = useCallback((sectionId: string) => {
-    setIsMobileMenuOpen(false);
-    const element = document.getElementById(sectionId.replace('#', ''));
-    if (element) {
-      const navHeight = 80; // Approximate navbar height
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - navHeight;
+  // Function to handle connect/account button click
+  const handleConnectClick = async () => {
+    if (isConnected) {
+      await appKitModal.open({ view: 'Account' });
+    } else {
+      await appKitModal.open();
+    }
+  };
 
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: 'smooth'
+  // Function to go to dashboard based on user role
+  const handleDashboardClick = () => {
+    // This is a placeholder - implement your logic to determine user role
+    // For now, we'll use localStorage, but in a real app, you'd likely use a backend check
+    const userRole = localStorage.getItem('userRole') || 'writer';
+    router.push(`/${userRole}/dashboard`);
+  };
+
+  const scrollToSection = (href: string) => {
+    const sectionId = href.replace('#', '');
+    const element = document.getElementById(sectionId);
+
+    if (element) {
+      element.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
       });
     }
-  }, []);
+  };
 
   return (
-    <>
-      <motion.nav
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled ? 'bg-black/80 backdrop-blur-lg shadow-lg' : 'bg-transparent'
-        }`}
-      >
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16 md:h-20">
-            {/* Logo */}
-            <Link 
-              href="/" 
-              className="flex items-center space-x-2 text-xl md:text-2xl font-bold gradient-text hover:scale-105 transition-transform"
-              onClick={() => scrollToSection('#top')}
-            >
-              <svg width="32" height="32" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
-                <defs>
-                  <linearGradient id="navGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style={{ stopColor: 'rgb(var(--accent-primary))' }} />
-                    <stop offset="100%" style={{ stopColor: 'rgb(var(--accent-secondary))' }} />
-                  </linearGradient>
-                </defs>
-                <path d="M256 96L384 176V336L256 416L128 336V176L256 96Z" 
-                      stroke="url(#navGradient)" 
-                      strokeWidth="24" 
-                      strokeLinejoin="round"
-                      fill="none"/>
-                <path d="M320 192L240 272L224 336L288 320L368 240L320 192Z" 
-                      fill="url(#navGradient)"/>
-                <circle cx="208" cy="352" r="8" fill="url(#navGradient)"/>
-                <circle cx="192" cy="368" r="6" fill="url(#navGradient)"/>
-                <circle cx="184" cy="384" r="4" fill="url(#navGradient)"/>
-              </svg>
-              <span>BlockCreative</span>
-              
-               <appkit-button />
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'backdrop-blur-lg bg-black/80' : 'bg-transparent'}`}>
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16 md:h-20">
+          {/* Logo */}
+          <Link 
+            href="/" 
+            className="flex items-center space-x-2 text-xl md:text-2xl font-bold gradient-text hover:scale-105 transition-transform"
+            onClick={() => scrollToSection('#top')}
+          >
+            <svg width="32" height="32" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-8 h-8">
+              <defs>
+                <linearGradient id="navGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style={{ stopColor: 'rgb(var(--accent-primary))' }} />
+                  <stop offset="100%" style={{ stopColor: 'rgb(var(--accent-secondary))' }} />
+                </linearGradient>
+              </defs>
+              <path d="M256 96L384 176V336L256 416L128 336V176L256 96Z" 
+                    stroke="url(#navGradient)" 
+                    strokeWidth="24" 
+                    strokeLinejoin="round"
+                    fill="none"/>
+              <path d="M320 192L240 272L224 336L288 320L368 240L320 192Z" 
+                    fill="url(#navGradient)"/>
+              <circle cx="208" cy="352" r="8" fill="url(#navGradient)"/>
+              <circle cx="192" cy="368" r="6" fill="url(#navGradient)"/>
+              <circle cx="184" cy="384" r="4" fill="url(#navGradient)"/>
+            </svg>
+            <span>BlockCreative</span>
+          </Link>
 
-              {/* Uncomment this if needed
-              <ModalProvider>
-                <div></div>
-              </ModalProvider> */}
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-1 lg:space-x-8">
-              {navigation.map((item) => (
-                <button
-                  key={item.name}
-                  onClick={() => scrollToSection(item.href)}
-                  className={`px-3 py-2 text-sm lg:text-base transition-all hover:scale-105 ${
-                    activeSection === item.href.replace('#', '')
-                    ? 'text-[rgb(var(--accent-primary))] font-semibold'
-                    : 'text-gray-300 hover:text-white'
-                  }`}
-                >
-                  {item.name}
-                </button>
-                
-              ))}
-              <div className="flex items-center gap-2 lg:gap-4 pl-2 lg:pl-4 border-l border-white/10">
-                {authLinks.map((link) => (
-                  <Link 
-                    key={link.name}
-                    href={link.href}
-                    className={link.isPrimary 
-                      ? 'button-primary text-sm lg:text-base whitespace-nowrap' 
-                      : 'px-4 py-2 text-sm lg:text-base text-white transition-all rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 hover:scale-105'}
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-8">
+            {navigation.map((item) => (
+              <button
+                key={item.name}
+                onClick={() => scrollToSection(item.href)}
+                className={`px-3 py-2 text-sm lg:text-base transition-all hover:scale-105 ${
+                  activeSection === item.href.replace('#', '')
+                  ? 'text-[rgb(var(--accent-primary))] font-semibold'
+                  : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                {item.name}
+              </button>
+            ))}
+            
+            <div className="ml-4 flex items-center space-x-3">
+              {isConnected && (
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={handleDashboardClick}
+                    className="px-4 py-2 text-sm font-medium text-white bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
                   >
-                    {link.name}
-                  </Link>
-                ))}
-              </div>
+                    Dashboard
+                  </button>
+                  
+                  <button
+                    onClick={handleConnectClick}
+                    className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] rounded-lg hover:opacity-90 transition-opacity flex items-center"
+                  >
+                    <span className="flex items-center">
+                      <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                      {address?.slice(0, 6)}...{address?.slice(-4)}
+                    </span>
+                  </button>
+                </div>
+              )}
+              
+              {!isConnected && (
+                <Link 
+                  href="/signup"
+                  className="px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Get Started
+                </Link>
+              )}
             </div>
+          </div>
 
-            {/* Mobile Menu Button */}
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
             <button
-              className="md:hidden text-gray-300 hover:text-white p-2"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Toggle menu"
+              className="p-2 text-white focus:outline-none"
             >
               {isMobileMenuOpen ? (
                 <XMarkIcon className="h-6 w-6" />
@@ -158,54 +173,78 @@ export default function Navbar() {
             </button>
           </div>
         </div>
-      </motion.nav>
+      </div>
 
       {/* Mobile Menu */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="fixed inset-0 z-40 md:hidden"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="md:hidden bg-black/95 backdrop-blur-lg"
           >
-            <div className="fixed inset-0 bg-black/90 backdrop-blur-lg">
-              <div className="flex flex-col items-center justify-center min-h-screen space-y-6 p-4">
+            <div className="container mx-auto px-4 py-4">
+              <div className="flex flex-col space-y-4">
                 {navigation.map((item) => (
                   <button
                     key={item.name}
-                    onClick={() => scrollToSection(item.href)}
-                    className={`text-xl transition-all hover:scale-105 ${
+                    onClick={() => {
+                      scrollToSection(item.href);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`px-3 py-2 text-sm font-medium transition-all ${
                       activeSection === item.href.replace('#', '')
-                      ? 'text-[rgb(var(--accent-primary))] font-semibold'
-                      : 'text-gray-300 hover:text-white'
+                      ? 'text-[rgb(var(--accent-primary))]'
+                      : 'text-gray-300'
                     }`}
                   >
                     {item.name}
                   </button>
                 ))}
-                <div className="flex flex-col items-center gap-4 pt-6 border-t border-white/10 w-full">
-                  {authLinks.map((link) => (
-                    <Link 
-                      key={link.name}
-                      href={link.href}
-                      className={link.isPrimary 
-                        ? 'button-primary text-lg w-full max-w-[200px] text-center' 
-                        : 'text-lg text-white w-full max-w-[200px] text-center px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 transition-all hover:scale-105'}
+                
+                <div className="grid grid-cols-1 gap-3 pt-4 border-t border-white/10">
+                  {isConnected ? (
+                    <>
+                      <button
+                        onClick={() => {
+                          handleDashboardClick();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full py-3 text-center bg-white/10 rounded-lg text-white font-medium"
+                      >
+                        Dashboard
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          handleConnectClick();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full py-3 text-center bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] rounded-lg text-white font-medium flex items-center justify-center"
+                      >
+                        <span className="flex items-center justify-center">
+                          <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                          {address?.slice(0, 6)}...{address?.slice(-4)}
+                        </span>
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      href="/signup"
                       onClick={() => setIsMobileMenuOpen(false)}
+                      className="w-full py-3 text-center bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] rounded-lg text-white font-medium"
                     >
-                      {link.name}
+                      Get Started
                     </Link>
-                    
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
           </motion.div>
-          
         )}
-        
       </AnimatePresence>
-    </>
+    </header>
   );
 }

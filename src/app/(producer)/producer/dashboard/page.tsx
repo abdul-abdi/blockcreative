@@ -177,7 +177,7 @@ export default function ProducerDashboard() {
 
   return (
     <DashboardLayout userType="producer">
-      <div className="p-6 md:p-8 space-y-8">
+      <div className="space-y-8">
         {/* Welcome Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -186,7 +186,7 @@ export default function ProducerDashboard() {
               animate={{ opacity: 1, y: 0 }}
               className="text-2xl sm:text-3xl font-bold text-white mb-2"
             >
-              Welcome back, <span className="gradient-text">Universal Studios</span> 🎬
+              Welcome back, <span className="gradient-text">Universal Studios</span> 👋
             </motion.h1>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -194,28 +194,21 @@ export default function ProducerDashboard() {
               transition={{ delay: 0.1 }}
               className="text-sm sm:text-base text-gray-400"
             >
-              Discover exceptional scripts and connect with talented writers.
+              Your project hub awaits. Discover top talent and breakthrough stories.
             </motion.p>
           </div>
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="flex flex-col sm:flex-row w-full sm:w-auto gap-3 sm:gap-4"
+            className="w-full sm:w-auto"
           >
-            <Link
-              href="/producer/writers"
-              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-white/10 text-white font-semibold hover:bg-white/20 transition-all hover:scale-105"
-            >
-              <UserGroupIcon className="w-5 h-5" />
-              <span>Find Writers</span>
-            </Link>
             <Link
               href="/producer/projects/new"
               className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all hover:scale-105 shadow-lg"
             >
               <PlusIcon className="w-5 h-5" />
-              <span>New Project</span>
+              <span>Create New Project</span>
             </Link>
           </motion.div>
         </div>
@@ -250,14 +243,14 @@ export default function ProducerDashboard() {
           ))}
         </div>
 
-        {/* Projects and Rankings */}
+        {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Active Projects */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="lg:col-span-2"
+            className="card lg:col-span-2"
           >
             <div className="card p-6">
               <div className="flex justify-between items-center mb-6">
@@ -316,11 +309,12 @@ export default function ProducerDashboard() {
             </div>
           </motion.div>
 
-          {/* Top Writers */}
+          {/* Top Writer Talent */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
+            className="card"
           >
             <div className="card p-6">
               <div className="flex justify-between items-center mb-6">
@@ -367,12 +361,14 @@ export default function ProducerDashboard() {
           </motion.div>
         </div>
 
-        {/* Submission Analysis */}
-        {selectedProject && selectedSubmission && (
+        {/* Recent Submissions Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Top Submissions */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
+            className="card lg:col-span-2"
           >
             <div className="card p-6">
               <div className="flex justify-between items-center mb-6">
@@ -437,7 +433,17 @@ export default function ProducerDashboard() {
               </div>
             </div>
           </motion.div>
-        )}
+
+          {/* AI Analysis */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="card"
+          >
+            {/* ... existing AI analysis code ... */}
+          </motion.div>
+        </div>
       </div>
     </DashboardLayout>
   );
