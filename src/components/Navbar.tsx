@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ModalProvider } from './ModalProvider';
 
 const navigation = [
   { name: 'Story', href: '#story' },
@@ -103,6 +104,13 @@ export default function Navbar() {
                 <circle cx="184" cy="384" r="4" fill="url(#navGradient)"/>
               </svg>
               <span>BlockCreative</span>
+              
+               <appkit-button />
+
+              {/* Uncomment this if needed
+              <ModalProvider>
+                <div></div>
+              </ModalProvider> */}
             </Link>
 
             {/* Desktop Navigation */}
@@ -119,6 +127,7 @@ export default function Navbar() {
                 >
                   {item.name}
                 </button>
+                
               ))}
               <div className="flex items-center gap-2 lg:gap-4 pl-2 lg:pl-4 border-l border-white/10">
                 {authLinks.map((link) => (
@@ -187,13 +196,16 @@ export default function Navbar() {
                     >
                       {link.name}
                     </Link>
+                    
                   ))}
                 </div>
               </div>
             </div>
           </motion.div>
+          
         )}
+        
       </AnimatePresence>
     </>
   );
-} 
+}
