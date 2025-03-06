@@ -1,32 +1,89 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/sections/Footer';
-import SocialAuth from '@/components/SocialAuth';
+import { appKitModal } from '@/context';
+import { useAccount } from 'wagmi';
 
 export default function SignIn() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const router = useRouter();
+  const { address, isConnected } = useAccount();
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Redirect if already connected
+  useEffect(() => {
+    if (isConnected && address) {
+      // In a real application, you would likely check the user role from your backend
+      // For now, let's check localStorage or default to writer
+      const userRole = localStorage.getItem('userRole') || determineUserRole(address);
+      
+      // Add a short delay to ensure smooth transition
+      setIsLoading(true);
+      setTimeout(() => {
+        router.push(`/${userRole}/dashboard`);
+      }, 500);
+    }
+  }, [isConnected, address, router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Simple function to determine user role based on address
+  // In a real app, this would likely be a backend call
+  const determineUserRole = (address: string) => {
+    // For demo purposes, assign roles based on last character of address
+    // In a real app, this would be based on actual user roles stored in a database
+    const lastChar = address.slice(-1).toLowerCase();
+    const isEven = parseInt(lastChar, 16) % 2 === 0;
+    const role = isEven ? 'writer' : 'producer';
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Store role and wallet info in localStorage for future reference
+    localStorage.setItem('userRole', role);
+    localStorage.setItem('walletAddress', address);
     
-    // For demo purposes, redirect to producer dashboard
-    router.push('/producer/dashboard');
+    // For social auth users, we'll use a default name initially
+    // This would be updated when we get the actual user data from social providers
+    if (!localStorage.getItem('userName')) {
+      localStorage.setItem('userName', role === 'writer' ? 'Writer User' : 'Producer User');
+    }
+    
+    return role;
   };
 
-  const handleSocialAuth = async (provider: string) => {
-    // Implement social authentication logic here
-    console.log('Authenticating with:', provider);
+  // Handle wallet connect button click
+  const handleWalletConnect = async () => {
+    try {
+      setIsLoading(true);
+      await appKitModal.open();
+    } catch (error) {
+      console.error('Connection error:', error);
+      setIsLoading(false);
+    }
   };
+
+  // Handle email/social connect button click
+  const handleEmailSocialConnect = async () => {
+    try {
+      setIsLoading(true);
+      await appKitModal.open({ view: 'Connect' });
+    } catch (error) {
+      console.error('Email/social login error:', error);
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin mb-4 mx-auto"></div>
+          <h2 className="text-xl font-bold text-white mb-2">Signing you in...</h2>
+          <p className="text-gray-400">You'll be redirected shortly</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -51,88 +108,47 @@ export default function SignIn() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="card p-8 sm:p-10 shadow-xl space-y-8"
+            className="bg-zinc-900/50 backdrop-blur-lg rounded-2xl p-8 shadow-xl border border-white/5"
           >
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] focus:ring-1 focus:ring-[rgb(var(--accent-primary))] text-white transition-colors duration-200"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] focus:ring-1 focus:ring-[rgb(var(--accent-primary))] text-white transition-colors duration-200"
-                  required
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-white/10 bg-white/5 text-[rgb(var(--accent-primary))] focus:ring-[rgb(var(--accent-primary))] focus:ring-offset-black"
-                  />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-300">
-                    Remember me
-                  </label>
-                </div>
-                <div className="text-sm">
-                  <Link
-                    href="/forgot-password"
-                    className="text-[rgb(var(--accent-primary))] hover:underline hover:text-[rgb(var(--accent-primary))]/80 transition-colors font-medium"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-              </div>
+            <div className="space-y-6">
               <button
-                type="submit"
-                className="w-full button-primary py-4 text-base font-medium"
+                onClick={handleWalletConnect}
+                className="w-full py-3 px-4 rounded-lg text-white font-medium bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] hover:opacity-90 transition-opacity flex items-center justify-center"
+                disabled={isLoading}
               >
-                Sign In
+                Connect Wallet
               </button>
-            </form>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10"></div>
+              
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-white/10"></div>
+                <span className="flex-shrink mx-4 text-sm text-gray-400">or use email & socials</span>
+                <div className="flex-grow border-t border-white/10"></div>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-black text-gray-400">Or continue with</span>
+              
+              <div>
+                <button
+                  onClick={handleEmailSocialConnect}
+                  className="w-full py-3 px-4 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white font-medium transition-colors flex items-center justify-center"
+                  disabled={isLoading}
+                >
+                  Continue with Email or Social
+                </button>
               </div>
             </div>
-
-            <SocialAuth onConnect={handleSocialAuth} />
-
-            <div className="text-center text-base text-gray-400">
-              Don&apos;t have an account?{' '}
-              <Link 
-                href="/signup" 
-                className="text-[rgb(var(--accent-primary))] hover:underline hover:text-[rgb(var(--accent-primary))]/80 transition-colors font-medium"
-              >
-                Sign up
-              </Link>
+            
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-400">
+                Don't have an account?{' '}
+                <Link href="/signup" className="text-[rgb(var(--accent-primary))] hover:underline">
+                  Sign up
+                </Link>
+              </p>
             </div>
           </motion.div>
         </div>
       </main>
-
-      <Footer />
       
+      <Footer />
     </div>
   );
 } 

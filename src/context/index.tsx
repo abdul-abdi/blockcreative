@@ -1,9 +1,9 @@
 'use client'
 
-import { wagmiAdapter, projectId } from '@/config'
+import { wagmiAdapter, projectId, domain } from '@/config'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createAppKit } from '@reown/appkit/react'
-import { mainnet, arbitrum, lisk,liskSepolia } from '@reown/appkit/networks'
+import { mainnet, arbitrum, lisk, liskSepolia } from '@reown/appkit/networks'
 import React, { type ReactNode } from 'react'
 import { cookieToInitialState, WagmiProvider, type Config } from 'wagmi'
 
@@ -18,21 +18,21 @@ if (!projectId) {
 const metadata = {
   name: 'Blockcreative',
   description: 'Revolutionize scriptwriting with blockchain & AI. Empowering producers and scriptwriters to create award-winning content securely and transparently.',
-  url: 'https://blockcreative.vercel.app/', // origin must match your domain & subdomain
+  url: `https://${domain}`, // origin must match your domain & subdomain
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 }
 
-// Create the modal
-const modal = createAppKit({
+// Create the AppKit modal
+export const appKitModal = createAppKit({
   adapters: [wagmiAdapter],
   projectId,
   networks: [mainnet, arbitrum, liskSepolia, lisk],
   defaultNetwork: mainnet,
   metadata: metadata,
   features: {
-    analytics: true, // Optional - defaults to your Cloud configuration
-    email:true,
-    socials:['google', 'x', 'github', 'discord', 'apple', 'facebook', 'farcaster'],
+    analytics: true,
+    email: true,
+    socials: ['google', 'x', 'github', 'discord', 'apple', 'facebook', 'farcaster'],
     emailShowWallets: false,
   },
   allWallets: 'SHOW',

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -9,148 +10,256 @@ import {
   CurrencyDollarIcon,
   StarIcon,
   ArrowTrendingUpIcon,
-  ClockIcon,
   PlusIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
 
-// Mock data
-const stats = [
+// Define types for our data
+interface Submission {
+  id: number;
+  title: string;
+  project: string;
+  studio: string;
+  submitted: string;
+  status: string;
+  rank: number;
+  score: number;
+}
+
+interface Project {
+  id: number;
+  title: string;
+  studio: string;
+  budget: string;
+  deadline: string;
+  submissions: number;
+  requirements: string[];
+}
+
+// Define allowed color combinations
+type GradientColor = 
+  | 'from-purple-500 to-indigo-500' 
+  | 'from-emerald-500 to-teal-500' 
+  | 'from-amber-500 to-orange-500' 
+  | 'from-pink-500 to-rose-500'
+  | 'from-blue-500 to-cyan-500'
+  | 'from-gray-500 to-gray-700';
+
+// Define allowed icon types
+type IconType = 'document' | 'chart' | 'currency' | 'star';
+
+interface StatItem {
+  id: string;
+  name: string;
+  value: string;
+  change: string;
+  trend: 'up' | 'down' | 'neutral';
+  iconType: IconType;
+  color: GradientColor;
+}
+
+// Stats structure (would normally come from an API)
+const statsStructure: StatItem[] = [
   {
+    id: 'submissions',
     name: 'Active Submissions',
-    value: '12',
-    change: '+2 this week',
-    trend: 'up',
-    icon: DocumentTextIcon,
+    value: '0',
+    change: '0 this week',
+    trend: 'neutral',
+    iconType: 'document',
     color: 'from-purple-500 to-indigo-500',
   },
   {
+    id: 'score',
     name: 'Average AI Score',
-    value: '87',
-    change: '+3 points',
-    trend: 'up',
-    icon: ChartBarIcon,
+    value: '0',
+    change: '0 points',
+    trend: 'neutral',
+    iconType: 'chart',
     color: 'from-emerald-500 to-teal-500',
   },
   {
+    id: 'earnings',
     name: 'Total Earnings',
-    value: '$45K',
-    change: '+$5K this month',
-    trend: 'up',
-    icon: CurrencyDollarIcon,
+    value: '$0',
+    change: '$0 this month',
+    trend: 'neutral',
+    iconType: 'currency',
     color: 'from-amber-500 to-orange-500',
   },
   {
+    id: 'success',
     name: 'Success Rate',
-    value: '92%',
-    change: '+5% improvement',
-    trend: 'up',
-    icon: StarIcon,
+    value: '0%',
+    change: '0% change',
+    trend: 'neutral',
+    iconType: 'star',
     color: 'from-pink-500 to-rose-500',
   },
 ];
 
-const activeSubmissions = [
-  {
-    id: 1,
-    title: 'Beyond the Stars',
-    project: 'Sci-Fi Adventure',
-    studio: 'Universal Pictures',
-    submitted: '2024-03-15',
-    status: 'Under Review',
-    rank: 1,
-    score: 94,
-    analysis: {
-      plotStrength: 92,
-      characterDevelopment: 95,
-      marketPotential: 88,
-      uniqueness: 94,
-      pacing: 91,
-      dialogue: 93,
-      structure: 90,
-      theme: 92,
-    },
-  },
-  {
-    id: 2,
-    title: 'The Last Detective',
-    project: 'Crime Thriller',
-    studio: 'Netflix Studios',
-    submitted: '2024-03-10',
-    status: 'Shortlisted',
-    rank: 2,
-    score: 91,
-    analysis: {
-      plotStrength: 89,
-      characterDevelopment: 92,
-      marketPotential: 90,
-      uniqueness: 91,
-      pacing: 88,
-      dialogue: 90,
-      structure: 89,
-      theme: 91,
-    },
-  },
-  {
-    id: 3,
-    title: 'City Lights',
-    project: 'Drama Series',
-    studio: 'HBO Max',
-    submitted: '2024-03-05',
-    status: 'In Competition',
-    rank: 3,
-    score: 88,
-    analysis: {
-      plotStrength: 87,
-      characterDevelopment: 89,
-      marketPotential: 88,
-      uniqueness: 87,
-      pacing: 88,
-      dialogue: 86,
-      structure: 88,
-      theme: 87,
-    },
-  },
-];
-
-const availableProjects = [
-  {
-    id: 1,
-    title: 'Sci-Fi Feature Film',
-    studio: 'Paramount Pictures',
-    budget: '$100K-200K',
-    deadline: '2024-04-15',
-    submissions: 12,
-    requirements: ['Original concept', 'High-concept premise', 'Commercial appeal'],
-  },
-  {
-    id: 2,
-    title: 'Drama Series Pilot',
-    studio: 'Amazon Studios',
-    budget: '$50K-100K',
-    deadline: '2024-04-20',
-    submissions: 8,
-    requirements: ['Character-driven', 'Social relevance', 'Series potential'],
-  },
-  {
-    id: 3,
-    title: 'Thriller Feature',
-    studio: 'A24',
-    budget: '$75K-150K',
-    deadline: '2024-04-25',
-    submissions: 15,
-    requirements: ['Unique perspective', 'Plot twists', 'Genre innovation'],
-  },
-];
-
 export default function WriterDashboard() {
-  const [selectedSubmission, setSelectedSubmission] = useState(activeSubmissions[0]);
+  const [userName, setUserName] = useState('');
+  const [stats, setStats] = useState<StatItem[]>(statsStructure);
+  const [activeSubmissions, setActiveSubmissions] = useState<Submission[]>([]);
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Helper function to render the correct icon based on type
+  const renderIcon = (iconType: IconType) => {
+    switch (iconType) {
+      case 'document':
+        return <DocumentTextIcon className="w-6 h-6 text-white" />;
+      case 'chart':
+        return <ChartBarIcon className="w-6 h-6 text-white" />;
+      case 'currency':
+        return <CurrencyDollarIcon className="w-6 h-6 text-white" />;
+      case 'star':
+        return <StarIcon className="w-6 h-6 text-white" />;
+      default:
+        return <DocumentTextIcon className="w-6 h-6 text-white" />;
+    }
+  };
+
+  // Load user data
+  useEffect(() => {
+    // In a real app, this would fetch data from an API
+    const fetchData = async () => {
+      try {
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Get user data from localStorage
+        const storedName = localStorage.getItem('userName');
+        setUserName(storedName || 'Writer');
+        
+        // Simulate fetching stats data
+        const newStats: StatItem[] = [
+          {
+            id: 'submissions',
+            name: 'Active Submissions',
+            value: '3',
+            change: '+1 this week',
+            trend: 'up',
+            iconType: 'document',
+            color: 'from-purple-500 to-indigo-500',
+          },
+          {
+            id: 'score',
+            name: 'Average AI Score',
+            value: '87',
+            change: '+3 points',
+            trend: 'up',
+            iconType: 'chart',
+            color: 'from-emerald-500 to-teal-500',
+          },
+          {
+            id: 'earnings',
+            name: 'Total Earnings',
+            value: '$2.5K',
+            change: '+$500 this month',
+            trend: 'up',
+            iconType: 'currency',
+            color: 'from-amber-500 to-orange-500',
+          },
+          {
+            id: 'success',
+            name: 'Success Rate',
+            value: '75%',
+            change: '+5% improvement',
+            trend: 'up',
+            iconType: 'star',
+            color: 'from-pink-500 to-rose-500',
+          },
+        ];
+        setStats(newStats);
+        
+        // Simulate fetching submissions data
+        const submissionsData: Submission[] = [
+          {
+            id: 1,
+            title: 'The Journey Home',
+            project: 'Drama Feature',
+            studio: 'Indie Productions',
+            submitted: '2 days ago',
+            status: 'Under Review',
+            rank: 2,
+            score: 88,
+          },
+          {
+            id: 2,
+            title: 'Midnight Chronicles',
+            project: 'Sci-Fi Series',
+            studio: 'StreamFlix',
+            submitted: '1 week ago',
+            status: 'Shortlisted',
+            rank: 3,
+            score: 85,
+          },
+          {
+            id: 3,
+            title: 'The Last Stand',
+            project: 'Action Feature',
+            studio: 'Global Studios',
+            submitted: '2 weeks ago',
+            status: 'In Competition',
+            rank: 5,
+            score: 82,
+          },
+        ];
+        setActiveSubmissions(submissionsData);
+        setSelectedSubmission(submissionsData[0]);
+        
+        // Simulate fetching available projects
+        const projectsData: Project[] = [
+          {
+            id: 1,
+            title: 'Drama Feature Film',
+            studio: 'Paramount Pictures',
+            budget: '$50K-100K',
+            deadline: '2 weeks',
+            submissions: 8,
+            requirements: ['Character-driven', 'Social themes', 'Original concept'],
+          },
+          {
+            id: 2,
+            title: 'Comedy Series',
+            studio: 'Amazon Studios',
+            budget: '$30K-75K',
+            deadline: '3 weeks',
+            submissions: 12,
+            requirements: ['Ensemble cast', 'Workplace setting', 'Series potential'],
+          },
+        ];
+        setAvailableProjects(projectsData);
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+  
+  // Loading state
+  if (isLoading) {
+    return (
+      <DashboardLayout userType="writer">
+        <div className="flex items-center justify-center h-full">
+          <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userType="writer">
-      <div className="p-6 md:p-8 space-y-8">
+      <div className="space-y-8">
         {/* Welcome Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -159,7 +268,7 @@ export default function WriterDashboard() {
               animate={{ opacity: 1, y: 0 }}
               className="text-2xl sm:text-3xl font-bold text-white mb-2"
             >
-              Welcome back, <span className="gradient-text">Sarah</span> 👋
+              Welcome back, <span className="gradient-text">{userName}</span> 👋
             </motion.h1>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -190,7 +299,7 @@ export default function WriterDashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {stats.map((stat, index) => (
             <motion.div
-              key={stat.name}
+              key={stat.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
@@ -199,7 +308,7 @@ export default function WriterDashboard() {
               <div className="p-6">
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-lg bg-gradient-to-br ${stat.color} bg-opacity-10`}>
-                    <stat.icon className="w-6 h-6 text-white" />
+                    {renderIcon(stat.iconType)}
                   </div>
                   <div>
                     <p className="text-sm text-gray-400">{stat.name}</p>
@@ -207,8 +316,14 @@ export default function WriterDashboard() {
                   </div>
                 </div>
                 <div className="mt-4 flex items-center text-sm">
-                  <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-500 mr-1" />
-                  <span className="text-emerald-500">{stat.change}</span>
+                  <ArrowTrendingUpIcon className={`w-4 h-4 ${
+                    stat.trend === 'up' ? 'text-emerald-500' : 
+                    stat.trend === 'down' ? 'text-red-500' : 'text-gray-400'
+                  } mr-1`} />
+                  <span className={
+                    stat.trend === 'up' ? 'text-emerald-500' : 
+                    stat.trend === 'down' ? 'text-red-500' : 'text-gray-400'
+                  }>{stat.change}</span>
                 </div>
               </div>
               <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-xl`} />
@@ -217,50 +332,83 @@ export default function WriterDashboard() {
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Active Submissions */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="card"
+            className="card lg:col-span-2"
           >
             <div className="p-6">
               <h2 className="text-xl font-bold text-white mb-6">Active Submissions</h2>
-              <div className="space-y-6">
-                {activeSubmissions.map((submission) => (
-                  <div
-                    key={submission.id}
-                    className="p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-                    onClick={() => setSelectedSubmission(submission)}
-                  >
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
-                      <div>
-                        <h3 className="font-semibold text-white text-sm sm:text-base">{submission.title}</h3>
-                        <p className="text-xs sm:text-sm text-gray-400">{submission.project}</p>
+              
+              {activeSubmissions.length > 0 ? (
+                <div className="space-y-6">
+                  {activeSubmissions.map((submission) => (
+                    <div
+                      key={submission.id}
+                      className={`p-4 ${selectedSubmission && selectedSubmission.id === submission.id ? 
+                        'bg-white/10' : 'bg-white/5'} rounded-lg hover:bg-white/10 transition-colors cursor-pointer`}
+                      onClick={() => setSelectedSubmission(submission)}
+                    >
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
+                        <div>
+                          <h3 className="font-semibold text-white text-sm sm:text-base">{submission.title}</h3>
+                          <p className="text-xs sm:text-sm text-gray-400">{submission.project}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            submission.rank <= 3 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            Rank #{submission.rank}
+                          </span>
+                          <span className="px-2 py-1 bg-[rgb(var(--accent-primary))]/20 text-[rgb(var(--accent-primary))] rounded-full text-xs">
+                            {submission.score}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          submission.rank <= 3 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-gray-400">
+                        <div className="flex items-center gap-3">
+                          <span>{submission.studio}</span>
+                          <span>•</span>
+                          <span>Submitted {submission.submitted}</span>
+                        </div>
+                        <span className={`mt-2 sm:mt-0 px-2 py-1 rounded-full ${
+                          submission.status === 'Shortlisted' ? 'bg-amber-500/20 text-amber-400' :
+                          submission.status === 'Under Review' ? 'bg-blue-500/20 text-blue-400' :
+                          'bg-purple-500/20 text-purple-400'
                         }`}>
-                          Rank #{submission.rank}
-                        </span>
-                        <span className="px-2 py-1 bg-[rgb(var(--accent-primary))]/20 text-[rgb(var(--accent-primary))] rounded-full text-xs">
-                          {submission.score}%
+                          {submission.status}
                         </span>
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row justify-between text-xs sm:text-sm text-gray-400 gap-2">
-                      <span>{submission.studio}</span>
-                      <span>Submitted: {submission.submitted}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                  
+                  <Link
+                    href="/writer/submissions"
+                    className="flex items-center justify-center p-4 border border-dashed border-white/10 rounded-lg hover:border-white/20 transition-colors text-sm text-gray-400 hover:text-white"
+                  >
+                    View all submissions
+                    <ArrowRightIcon className="w-4 h-4 ml-2" />
+                  </Link>
+                </div>
+              ) : (
+                <div className="text-center p-6 border border-dashed border-white/10 rounded-lg">
+                  <p className="text-gray-400 mb-4">You don't have any active submissions yet.</p>
+                  <Link
+                    href="/writer/submit"
+                    className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors inline-flex items-center"
+                  >
+                    <PlusIcon className="w-4 h-4 mr-2" />
+                    Submit your first script
+                  </Link>
+                </div>
+              )}
             </div>
           </motion.div>
 
-          {/* AI Analysis */}
+          {/* AI Analysis Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -268,28 +416,37 @@ export default function WriterDashboard() {
             className="card"
           >
             <div className="p-6">
-              <h2 className="text-xl font-bold text-white mb-6">AI Analysis</h2>
-              {selectedSubmission && (
-                <>
+              <h2 className="text-xl font-bold text-white mb-6">Script Analysis</h2>
+              
+              {selectedSubmission ? (
+                <div>
                   <div className="mb-6">
-                    <h3 className="font-semibold text-white text-sm sm:text-base mb-2">{selectedSubmission.title}</h3>
-                    <p className="text-xs sm:text-sm text-gray-400">{selectedSubmission.project}</p>
+                    <h3 className="font-semibold text-white mb-1">{selectedSubmission.title}</h3>
+                    <p className="text-sm text-gray-400">AI Evaluation Score: {selectedSubmission.score}%</p>
                   </div>
-                  <div className="w-full">
-                    <div className="aspect-square">
-                      <AIAnalysisChart 
-                        analysisData={selectedSubmission.analysis}
-                        className="w-full h-full"
-                      />
-                    </div>
+                  
+                  <AIAnalysisChart />
+                  
+                  <div className="mt-6">
+                    <Link
+                      href={`/writer/submissions/${selectedSubmission.id}`}
+                      className="w-full py-2 flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors"
+                    >
+                      View detailed analysis
+                      <ArrowRightIcon className="w-4 h-4" />
+                    </Link>
                   </div>
-                </>
+                </div>
+              ) : (
+                <div className="text-center p-6 border border-dashed border-white/10 rounded-lg">
+                  <p className="text-gray-400">Select a submission to view its analysis</p>
+                </div>
               )}
             </div>
           </motion.div>
         </div>
 
-        {/* Available Projects */}
+        {/* Available Projects Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -301,45 +458,71 @@ export default function WriterDashboard() {
               <h2 className="text-xl font-bold text-white">Available Projects</h2>
               <Link
                 href="/writer/projects"
-                className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-sm font-medium hover:from-purple-600 hover:to-indigo-600 transition-all hover:scale-105"
+                className="flex items-center text-sm text-[rgb(var(--accent-primary))] hover:underline"
               >
-                View All Projects
-                <ArrowRightIcon className="w-4 h-4" />
+                View all
+                <ArrowRightIcon className="w-4 h-4 ml-1" />
               </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {availableProjects.map((project) => (
-                <div key={project.id} className="bg-white/5 rounded-lg p-4 hover:bg-white/10 transition-colors">
-                  <h3 className="font-semibold text-white text-sm sm:text-base mb-2">{project.title}</h3>
-                  <p className="text-xs sm:text-sm text-[rgb(var(--accent-primary))] mb-4">{project.studio}</p>
-                  <div className="space-y-2 mb-6">
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
-                      <CurrencyDollarIcon className="w-4 h-4" />
-                      <span>{project.budget}</span>
+            
+            {availableProjects.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {availableProjects.map((project) => (
+                  <div
+                    key={project.id}
+                    className="p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                  >
+                    <h3 className="font-semibold text-white mb-2">{project.title}</h3>
+                    <div className="space-y-3 mb-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Studio:</span>
+                        <span className="text-white">{project.studio}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Budget:</span>
+                        <span className="text-white">{project.budget}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Deadline:</span>
+                        <span className="text-white">{project.deadline}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Submissions:</span>
+                        <span className="text-white">{project.submissions}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
-                      <ClockIcon className="w-4 h-4" />
-                      <span>Due: {project.deadline}</span>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {project.requirements.map((req, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 bg-white/5 rounded-full text-xs text-gray-300"
+                        >
+                          {req}
+                        </span>
+                      ))}
                     </div>
-                  </div>
-                  <div className="flex flex-col gap-3">
                     <Link
                       href={`/writer/projects/${project.id}`}
-                      className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs sm:text-sm font-semibold rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all hover:scale-105"
+                      className="w-full py-2 flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors"
                     >
-                      View Details
-                    </Link>
-                    <Link
-                      href={`/writer/submit?project=${project.id}`}
-                      className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-lg hover:from-purple-600 hover:to-indigo-600 transition-all hover:scale-105"
-                    >
-                      <PlusIcon className="w-4 h-4" />
-                      Submit Script
+                      View project
+                      <ArrowRightIcon className="w-4 h-4" />
                     </Link>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center p-6 border border-dashed border-white/10 rounded-lg">
+                <p className="text-gray-400 mb-4">No projects available at this time.</p>
+                <Link
+                  href="/writer/projects"
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors inline-flex items-center"
+                >
+                  Browse all projects
+                  <ArrowRightIcon className="w-4 h-4 ml-2" />
+                </Link>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
