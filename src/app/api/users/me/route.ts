@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import { User } from '@/models';
 import { getToken } from 'next-auth/jwt';
+import { withApiMiddleware } from '@/lib/api-middleware';
 
 // GET /api/users/me - Get current user info
-export async function GET(request: NextRequest) {
+async function getUserHandler(request: NextRequest) {
   try {
     // Check authentication via NextAuth
     const token = await getToken({ req: request as any });
@@ -78,7 +79,13 @@ export async function GET(request: NextRequest) {
       onboarding_completed: user.onboarding_completed
     });
     
-    return NextResponse.json({ user }, { status: 200 });
+    // Set cache control headers to help reduce repeated requests
+    return NextResponse.json({ user }, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'private, max-age=5' // Cache for 5 seconds in the client
+      }
+    });
   } catch (error) {
     console.error('Error fetching current user:', error);
     return NextResponse.json({ 
@@ -86,10 +93,10 @@ export async function GET(request: NextRequest) {
       message: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
-} 
+}
 
 // PUT /api/users/me - Update current user
-export async function PUT(request: NextRequest) {
+async function updateUserHandler(request: NextRequest) {
   try {
     // Check authentication via NextAuth
     const token = await getToken({ req: request as any });
@@ -192,4 +199,17 @@ export async function PUT(request: NextRequest) {
       message: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
-} 
+}
+
+// Apply middleware with strict rate limiting for the /api/users/me endpoints
+export const GET = withApiMiddleware(getUserHandler, {
+  requireAuth: false, // Handle auth in the handler to support multiple auth methods
+  connectDb: false, // Handle db connection in the handler
+  rateLimitType: 'userMe' // Apply strict rate limits to this frequently called endpoint
+});
+
+export const PUT = withApiMiddleware(updateUserHandler, {
+  requireAuth: false, // Handle auth in the handler
+  connectDb: false, // Handle db connection in the handler
+  rateLimitType: 'default' // Regular rate limits for PUT operations
+}); 

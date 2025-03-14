@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRightIcon,
   ArrowLeftIcon,
@@ -12,6 +12,7 @@ import {
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useSession } from 'next-auth/react';
+import { useUser } from '@/lib/hooks/useUser';
 
 const steps = [
   {
@@ -58,6 +59,8 @@ export default function WriterOnboarding() {
   const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  const { user, isLoading: isUserLoading, mutate: refreshUser } = useUser();
+
   // Redirect if not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -87,64 +90,38 @@ export default function WriterOnboarding() {
 
   // Fetch user data if it exists
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const walletAddress = localStorage.getItem('walletAddress');
-        if (!walletAddress) return;
+    // Use data from the custom hook if available
+    if (user && user.role === 'writer') {
+      // Pre-fill form with existing data
+      console.log('Using cached user data for pre-filling form:', user);
+      
+      if (user.profile_data) {
+        const profileData = user.profile_data;
         
-        console.log('Fetching user data for wallet:', walletAddress);
-        const response = await fetch('/api/users/me', {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-wallet-address': walletAddress
-          }
+        // Update form data with user profile information
+        setFormData({
+          name: profileData.name || '',
+          bio: profileData.bio || '',
+          avatar: profileData.avatar || '',
+          writing_experience: profileData.writing_experience || '',
+          portfolio_url: profileData.website || profileData.portfolio_url || '',
+          social: {
+            twitter: profileData.social?.twitter || '',
+            linkedin: profileData.social?.linkedin || '',
+            instagram: profileData.social?.instagram || ''
+          },
+          genres: profileData.genres || [],
+          project_types: profileData.project_types || []
         });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.user && data.user.role === 'writer') {
-            // Pre-fill form with existing data
-            const userData = data.user;
-            console.log('Fetched existing user data for pre-filling form:', userData);
-            
-            if (userData.profile_data) {
-              setFormData({
-                name: userData.profile_data.name || '',
-                bio: userData.profile_data.bio || '',
-                avatar: userData.profile_data.avatar || '',
-                writing_experience: userData.profile_data.writing_experience || '',
-                portfolio_url: userData.profile_data.website || '',
-                social: userData.profile_data.social || {
-                  twitter: '',
-                  linkedin: '',
-                  instagram: ''
-                },
-                genres: userData.profile_data.genres || [],
-                project_types: userData.profile_data.project_types || []
-              });
-            }
-            
-            // If onboarding is already completed, redirect to dashboard
-            if (userData.onboarding_completed) {
-              console.log('Onboarding already completed, redirecting to dashboard');
-              router.push('/writer/dashboard');
-            }
-          }
-        } else if (response.status !== 404) {
-          // Only show error for unexpected errors, not 404 (which is expected for new users)
-          console.error('Error fetching user data:', await response.text());
-        } else {
-          console.log('No existing user found with this wallet address - continuing with onboarding as new user');
-        }
-      } catch (error) {
-        console.error('Error fetching user data:', error);
       }
-    };
-    
-    if (status !== 'loading' && !isRedirecting) {
-      fetchUserData();
+      
+      // If onboarding is already completed, redirect to dashboard
+      if (user.onboarding_completed) {
+        console.log('Onboarding already completed, redirecting to dashboard');
+        router.push('/writer/dashboard');
+      }
     }
-  }, [status, router, isRedirecting]);
+  }, [user, router]);
 
   const currentStep = steps[currentStepIndex];
 

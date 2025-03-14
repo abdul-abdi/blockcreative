@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAccount } from 'wagmi';
 import { appKitModal } from '@/context';
 import { useSession } from 'next-auth/react';
+import { useUser } from '@/lib/hooks/useUser';
 
 interface AuthWrapperProps {
   children: ReactNode;
@@ -25,18 +26,21 @@ export default function AuthWrapper({
   const router = useRouter();
   const pathname = usePathname();
   const [isChecking, setIsChecking] = useState(true);
+  const { user, error, isLoading: isUserLoading, mutate: refreshUser } = useUser();
 
   useEffect(() => {
     const checkAuthAndOnboarding = async () => {
       try {
         // Check if we're on a public route (no auth needed)
-        const isPublicRoute = publicRoutes.includes(pathname);
-        const isOnboardingRoute = onboardingRoutes.some(route => pathname.startsWith(route));
+        const isPublicRoute = pathname ? publicRoutes.includes(pathname) : false;
+        const isOnboardingRoute = pathname ? onboardingRoutes.some(route => pathname.startsWith(route)) : false;
         
         // Store wallet address in localStorage when connected
         if (isConnected && address) {
           console.log('Storing connected wallet address in localStorage:', address);
           localStorage.setItem('walletAddress', address);
+          // Refresh user data when wallet changes
+          refreshUser();
         }
         
         // Get user info from localStorage or session
@@ -58,97 +62,67 @@ export default function AuthWrapper({
         
         // If authenticated, check onboarding status (except if already on onboarding route)
         if (isAuthenticated && !isPublicRoute && !isOnboardingRoute) {
-          try {
-            console.log('Checking onboarding status for authenticated user');
-            const headers: HeadersInit = {
-              'Content-Type': 'application/json'
-            };
-            
-            // Add wallet address to headers if available - try multiple sources
-            if (address) {
-              headers['x-wallet-address'] = address;
-              console.log('Using connected wallet address for API call:', address);
-            } else if (storedAddress) {
-              headers['x-wallet-address'] = storedAddress;
-              console.log('Using stored wallet address for API call:', storedAddress);
-            } else if (userSession?.address) {
-              headers['x-wallet-address'] = userSession.address;
-              console.log('Using session wallet address for API call:', userSession.address);
-            }
-            
-            // Make API call with appropriate headers
-            const response = await fetch('/api/users/me', { 
-              headers,
-              // Add cache busting parameter to prevent caching
-              cache: 'no-store'
+          // If user data is available from the hook
+          if (user) {
+            console.log('User data fetched from cache:', {
+              id: user.id,
+              address: user.address,
+              onboarding_completed: user.onboarding_completed,
+              role: user.role
             });
             
-            if (response.ok) {
-              const userData = await response.json();
-              console.log('User data fetched:', {
-                id: userData.user?.id,
-                address: userData.user?.address,
-                onboarding_completed: userData.user?.onboarding_completed,
-                role: userData.user?.role
-              });
-              
-              // Store user role and onboarding status in localStorage
-              if (userData.user?.role) {
-                localStorage.setItem('userRole', userData.user.role);
-              }
-              
-              if (userData.user?.address) {
-                localStorage.setItem('walletAddress', userData.user.address);
-              }
-              
-              if (userData.user?.profile_data?.name) {
-                localStorage.setItem('userName', userData.user.profile_data.name);
-              }
-              
-              if (userData.user?.onboarding_completed) {
-                localStorage.setItem('onboardingCompleted', 'true');
-              } else {
-                localStorage.setItem('onboardingCompleted', 'false');
-              }
-              
-              // If onboarding is not completed, redirect to onboarding
-              if (!userData.user?.onboarding_completed) {
-                const userRole = userData.user?.role || storedRole;
-                if (userRole) {
-                  console.log(`Redirecting to ${userRole} onboarding - onboarding not completed`);
-                  router.push(`/${userRole}/onboarding`);
-                  return;
-                } else {
-                  console.log('No role found for onboarding redirection');
-                  // If no role is set, redirect to signup to choose a role
-                  router.push('/signup');
-                  return;
-                }
-              } else {
-                console.log('User has completed onboarding');
-              }
+            // Store user role and onboarding status in localStorage
+            if (user.role) {
+              localStorage.setItem('userRole', user.role);
+            }
+            
+            if (user.address) {
+              localStorage.setItem('walletAddress', user.address);
+            }
+            
+            if (user.profile_data?.name) {
+              localStorage.setItem('userName', user.profile_data.name);
+            }
+            
+            if (user.onboarding_completed) {
+              localStorage.setItem('onboardingCompleted', 'true');
             } else {
-              console.error('Failed to fetch user data:', response.status);
-              const errorData = await response.json();
-              console.log('Error details:', errorData);
-              
-              // If user not found but we have a wallet address, direct to signup to choose role
-              if (response.status === 404 && (address || storedAddress)) {
-                console.log('Wallet address not found in database, redirecting to signup');
+              localStorage.setItem('onboardingCompleted', 'false');
+            }
+            
+            // If onboarding is not completed, redirect to onboarding
+            if (!user.onboarding_completed) {
+              const userRole = user.role || storedRole;
+              if (userRole) {
+                console.log(`Redirecting to ${userRole} onboarding - onboarding not completed`);
+                router.push(`/${userRole}/onboarding`);
+                return;
+              } else {
+                console.log('No role found for onboarding redirection');
+                // If no role is set, redirect to signup to choose a role
                 router.push('/signup');
                 return;
               }
-              
-              // Otherwise check localStorage as fallback
-              const onboardingCompleted = localStorage.getItem('onboardingCompleted') === 'true';
-              if (!onboardingCompleted && storedRole) {
-                console.log(`Redirecting to ${storedRole} onboarding (fallback)`);
-                router.push(`/${storedRole}/onboarding`);
-                return;
-              }
+            } else {
+              console.log('User has completed onboarding');
             }
-          } catch (error) {
-            console.error('Error checking onboarding status:', error);
+          } else if (error) {
+            console.error('Failed to fetch user data:', error);
+            
+            // If user not found but we have a wallet address, direct to signup to choose role
+            if (address || storedAddress) {
+              console.log('Wallet address not found in database, redirecting to signup');
+              router.push('/signup');
+              return;
+            }
+            
+            // Otherwise check localStorage as fallback
+            const onboardingCompleted = localStorage.getItem('onboardingCompleted') === 'true';
+            if (!onboardingCompleted && storedRole) {
+              console.log(`Redirecting to ${storedRole} onboarding (fallback)`);
+              router.push(`/${storedRole}/onboarding`);
+              return;
+            }
           }
         }
 
@@ -173,7 +147,7 @@ export default function AuthWrapper({
         }
         
         // If we're on an auth page but already authenticated, redirect to dashboard
-        if (isAuthenticated && (pathname === '/signin' || pathname === '/signup')) {
+        if (isAuthenticated && pathname && (pathname === '/signin' || pathname === '/signup')) {
           const userRole = storedRole || session?.user?.role || (isConnected && address ? determineUserRole(address) : 'writer');
           console.log(`Already authenticated on auth page, redirecting to ${userRole} dashboard`);
           router.push(`/${userRole}/dashboard`);
@@ -186,7 +160,7 @@ export default function AuthWrapper({
     };
     
     checkAuthAndOnboarding();
-  }, [isConnected, address, pathname, requireAuth, requiredRole, router, session, status]);
+  }, [isConnected, address, pathname, requireAuth, requiredRole, router, session, status, user, error, refreshUser]);
   
   // Function to determine user role based on address
   const determineUserRole = (address: string): 'writer' | 'producer' => {
@@ -212,7 +186,7 @@ export default function AuthWrapper({
   }
   
   // If we need authentication but aren't authenticated, show auth required screen
-  if (requireAuth && !isConnected && !localStorage.getItem('userRole') && !publicRoutes.includes(pathname)) {
+  if (requireAuth && !isConnected && !localStorage.getItem('userRole') && pathname && !publicRoutes.includes(pathname)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-black p-4">
         <div className="text-center max-w-md">

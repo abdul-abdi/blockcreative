@@ -18,6 +18,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
 import { useSession } from 'next-auth/react';
+import { useUser } from '@/lib/hooks/useUser';
 
 // Define interfaces for typed data
 interface Analysis {
@@ -82,6 +83,8 @@ export default function ProducerDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dataRefreshCounter, setDataRefreshCounter] = useState(0);
+
+  const { user, isLoading: isUserLoading } = useUser();
 
   // Safe way to read from localStorage that handles potential errors
   const safeGetFromStorage = (key: string, defaultValue: string = ''): string => {
@@ -151,138 +154,113 @@ export default function ProducerDashboard() {
     };
   }, []);
 
-  // Fetch user data from API
   useEffect(() => {
-    const fetchUserData = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        setError(null);
         
-        // Prepare headers with wallet address if available
-        const headers: HeadersInit = { 'Content-Type': 'application/json' };
-        const walletAddress = safeGetFromStorage('walletAddress');
-        
-        if (walletAddress) {
-          headers['x-wallet-address'] = walletAddress;
-          console.log('Using wallet address for dashboard data fetch:', walletAddress);
+        // Use data from the custom hook if available
+        if (user) {
+          console.log('Using cached user data for dashboard:', user);
+          setUserData(user);
+          setCompanyName(user.profile_data?.company_settings?.name || user.profile_data?.company || 'Your Studio');
+          
+          // Update localStorage with user data
+          if (user.profile_data?.name) {
+            localStorage.setItem('userName', user.profile_data.name);
+          }
+          
+          if (user.profile_data?.company && user.profile_data.company !== 'Your Studio') {
+            localStorage.setItem('companyName', user.profile_data.company);
+            console.log('Updated companyName in localStorage:', user.profile_data.company);
+          }
+          
+          // Double-check localStorage again to make sure we're using the most recent value
+          // This handles the case where the user just updated their settings but the API hasn't caught up yet
+          const storedCompanyName = safeGetFromStorage('companyName');
+          if (storedCompanyName && storedCompanyName !== user.profile_data.company) {
+            console.log('Using more recent company name from localStorage:', storedCompanyName);
+            setCompanyName(storedCompanyName);
+          }
+          
+          if (user.address) {
+            localStorage.setItem('walletAddress', user.address);
+          }
+          
+          // Initialize with empty data or default values
+          const initialStats: Stat[] = [
+            {
+              name: 'Active Projects',
+              value: '0',
+              change: '0 this week',
+              trend: 'neutral' as 'up' | 'down' | 'neutral',
+              icon: FolderIcon,
+              color: 'from-blue-500 to-cyan-500',
+            },
+            {
+              name: 'Total Submissions',
+              value: '0',
+              change: '0 new',
+              trend: 'neutral' as 'up' | 'down' | 'neutral',
+              icon: DocumentTextIcon,
+              color: 'from-violet-500 to-purple-500',
+            },
+            {
+              name: 'Average AI Score',
+              value: '0',
+              change: '0 points',
+              trend: 'neutral' as 'up' | 'down' | 'neutral',
+              icon: ChartBarIcon,
+              color: 'from-emerald-500 to-teal-500',
+            },
+            {
+              name: 'Total Investment',
+              value: '$0',
+              change: '$0 this month',
+              trend: 'neutral' as 'up' | 'down' | 'neutral',
+              icon: CurrencyDollarIcon,
+              color: 'from-amber-500 to-orange-500',
+            },
+          ];
+          
+          setStats(initialStats);
+          setActiveProjects([]);
+          setTopWriters([]);
         }
         
-        // Try to get user data from API
-        console.log('Fetching producer data for dashboard...');
-        const response = await fetch('/api/users/me', { 
-          headers,
+        // Fetch projects
+        const projectsResponse = await fetch('/api/projects', {
           cache: 'no-store'
         });
         
-        if (response.ok) {
-          const { user } = await response.json();
-          console.log('Fetched producer data for dashboard:', user);
-          
-          if (user) {
-            setUserData(user);
-            
-            // Get company name from user's profile data with more comprehensive fallbacks
-            // Check all possible locations for backward compatibility
-            const company = 
-              user.profile_data?.company_settings?.name || 
-              user.profile_data?.company || 
-              safeGetFromStorage('companyName') || 
-              'Your Studio';
-            
-            console.log('Setting company name from API response:', company);
-            setCompanyName(company);
-            
-            // Update localStorage with user data
-            if (user.profile_data?.name) {
-              localStorage.setItem('userName', user.profile_data.name);
-            }
-            
-            if (company && company !== 'Your Studio') {
-              localStorage.setItem('companyName', company);
-              console.log('Updated companyName in localStorage:', company);
-            }
-            
-            // Double-check localStorage again to make sure we're using the most recent value
-            // This handles the case where the user just updated their settings but the API hasn't caught up yet
-            const storedCompanyName = safeGetFromStorage('companyName');
-            if (storedCompanyName && storedCompanyName !== company) {
-              console.log('Using more recent company name from localStorage:', storedCompanyName);
-              setCompanyName(storedCompanyName);
-            }
-            
-            if (user.address) {
-              localStorage.setItem('walletAddress', user.address);
-            }
-            
-            // Initialize with empty data or default values
-            const initialStats: Stat[] = [
-              {
-                name: 'Active Projects',
-                value: '0',
-                change: '0 this week',
-                trend: 'neutral' as 'up' | 'down' | 'neutral',
-                icon: FolderIcon,
-                color: 'from-blue-500 to-cyan-500',
-              },
-              {
-                name: 'Total Submissions',
-                value: '0',
-                change: '0 new',
-                trend: 'neutral' as 'up' | 'down' | 'neutral',
-                icon: DocumentTextIcon,
-                color: 'from-violet-500 to-purple-500',
-              },
-              {
-                name: 'Average AI Score',
-                value: '0',
-                change: '0 points',
-                trend: 'neutral' as 'up' | 'down' | 'neutral',
-                icon: ChartBarIcon,
-                color: 'from-emerald-500 to-teal-500',
-              },
-              {
-                name: 'Total Investment',
-                value: '$0',
-                change: '$0 this month',
-                trend: 'neutral' as 'up' | 'down' | 'neutral',
-                icon: CurrencyDollarIcon,
-                color: 'from-amber-500 to-orange-500',
-              },
-            ];
-            
-            setStats(initialStats);
-            setActiveProjects([]);
-            setTopWriters([]);
-            
-            // TODO: Fetch actual projects, stats, and writers data from API endpoints once they're available
-            // Example:
-            // fetchProjects(user.id);
-            // fetchWriters(user.id);
+        if (projectsResponse.ok) {
+          const projectsData = await projectsResponse.json();
+          if (projectsData.projects && Array.isArray(projectsData.projects)) {
+            setActiveProjects(projectsData.projects);
           }
-        } else {
-          // If API call fails, try to use session or localStorage
-          console.error('Failed to fetch user data for dashboard:', response.status);
-          const errorData = await response.json();
-          console.log('Error details:', errorData);
-          
-          // Fallback to company name in localStorage
-          const storedCompanyName = safeGetFromStorage('companyName');
-          setCompanyName(storedCompanyName || 'Your Studio');
         }
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError('Failed to load dashboard data');
         
-        // Fallback to company name in localStorage
-        const storedCompanyName = safeGetFromStorage('companyName');
-        setCompanyName(storedCompanyName || 'Your Studio');
-      } finally {
+        // Fetch submissions
+        const submissionsResponse = await fetch('/api/submissions', {
+          cache: 'no-store'
+        });
+        
+        if (submissionsResponse.ok) {
+          const submissionsData = await submissionsResponse.json();
+          if (submissionsData.submissions && Array.isArray(submissionsData.submissions)) {
+            setSelectedSubmission(submissionsData.submissions[0]);
+          }
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
         setIsLoading(false);
       }
     };
     
-    fetchUserData();
-  }, [dataRefreshCounter]);
+    fetchData();
+  }, [user]);
 
   // Update selected submission when project changes
   useEffect(() => {

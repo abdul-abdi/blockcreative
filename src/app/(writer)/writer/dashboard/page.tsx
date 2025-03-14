@@ -16,6 +16,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
 import { useSession } from 'next-auth/react';
+import { useUser } from '@/lib/hooks/useUser';
 
 // Define types for our data
 interface Submission {
@@ -112,6 +113,8 @@ export default function WriterDashboard() {
   const [error, setError] = useState<string | null>(null);
   const { data: session, status } = useSession();
 
+  const { user, isLoading: isUserLoading } = useUser();
+
   // Helper function to render the correct icon based on type
   const renderIcon = (iconType: IconType) => {
     switch (iconType) {
@@ -128,94 +131,57 @@ export default function WriterDashboard() {
     }
   };
 
-  // Load user data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        setError(null);
         
-        // Prepare headers with wallet address if available
-        const headers: HeadersInit = { 'Content-Type': 'application/json' };
-        const walletAddress = localStorage.getItem('walletAddress');
-        
-        if (walletAddress) {
-          headers['x-wallet-address'] = walletAddress;
-          console.log('Using wallet address for dashboard data fetch:', walletAddress);
+        // Use data from the custom hook if available
+        if (user) {
+          console.log('Using cached user data for dashboard:', user);
+          setUserData(user);
+          setUserName(user.profile_data?.name || 'Writer');
         }
         
-        // Try to get user data from API
-        console.log('Fetching writer data for dashboard...');
-        const response = await fetch('/api/users/me', { 
-          headers,
+        // Fetch projects
+        const projectsResponse = await fetch('/api/projects', {
           cache: 'no-store'
         });
         
-        if (response.ok) {
-          const { user } = await response.json();
-          console.log('Fetched user data for dashboard:', user);
-          
-          if (user) {
-            setUserData(user);
-            setUserName(user.profile_data?.name || 'Writer');
-            
-            // Update localStorage with user data
-            if (user.profile_data?.name) {
-              localStorage.setItem('userName', user.profile_data.name);
-            }
-            
-            if (user.address) {
-              localStorage.setItem('walletAddress', user.address);
-            }
-            
-            // Update stats based on real user data
-            // For now we'll use empty data until the API is implemented
-            setStats(emptyStats);
-            
-            // In a real app, you would fetch real submissions and projects
-            // TODO: Replace with actual API calls once available
-            // const submissionsResponse = await fetch('/api/writer/submissions', { headers });
-            // if (submissionsResponse.ok) {
-            //   const submissionsData = await submissionsResponse.json();
-            //   setActiveSubmissions(submissionsData.submissions);
-            //   if (submissionsData.submissions.length > 0) {
-            //     setSelectedSubmission(submissionsData.submissions[0]);
-            //   }
-            // }
-            
-            // const projectsResponse = await fetch('/api/writer/available-projects', { headers });
-            // if (projectsResponse.ok) {
-            //   const projectsData = await projectsResponse.json();
-            //   setAvailableProjects(projectsData.projects);
-            // }
-            
-            setActiveSubmissions([]);
-            setAvailableProjects([]);
+        if (projectsResponse.ok) {
+          const projectsData = await projectsResponse.json();
+          if (projectsData.projects && Array.isArray(projectsData.projects)) {
+            setAvailableProjects(projectsData.projects.slice(0, 5));
           }
-        } else {
-          // If API call fails, try to use session or localStorage
-          console.error('Failed to fetch user data for dashboard:', response.status);
-          const errorData = await response.json();
-          console.log('Error details:', errorData);
-          
-          // Fallback to session or localStorage
-          const storedName = session?.user?.name || localStorage.getItem('userName');
-          setUserName(storedName || 'Writer');
         }
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError('Failed to load dashboard data');
         
-        // Fallback to session name or localStorage
-        const storedName = session?.user?.name || localStorage.getItem('userName');
-        setUserName(storedName || 'Writer');
-      } finally {
+        // Fetch submissions
+        const submissionsResponse = await fetch('/api/submissions', {
+          cache: 'no-store'
+        });
+        
+        if (submissionsResponse.ok) {
+          const submissionsData = await submissionsResponse.json();
+          if (submissionsData.submissions && Array.isArray(submissionsData.submissions)) {
+            setActiveSubmissions(submissionsData.submissions.slice(0, 5));
+            if (submissionsData.submissions.length > 0) {
+              setSelectedSubmission(submissionsData.submissions[0]);
+            }
+          }
+        }
+        
+        // Generate stats from the data we have
+        setStats(emptyStats);
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
         setIsLoading(false);
       }
     };
     
     fetchData();
-  }, [session, status]);
+  }, [user]);
   
   // Loading state
   if (isLoading) {

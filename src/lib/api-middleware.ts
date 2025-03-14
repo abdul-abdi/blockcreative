@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import connectToDatabase from './mongodb';
 import mockDbService from './mock-db';
+import { rateLimit, configureRateLimits } from './rateLimit';
 
 // Define API handler type
 type ApiHandler = (
   req: NextRequest,
   context: { params: any; token?: any; db?: any }
 ) => Promise<NextResponse>;
+
+// Configure rate limits for different endpoint types
+const rateLimits = configureRateLimits();
 
 /**
  * API middleware to handle authentication, database connection, and error handling
@@ -21,13 +25,35 @@ export function withApiMiddleware(
     requireAuth?: boolean;
     requireRoles?: ('writer' | 'producer' | 'admin')[];
     connectDb?: boolean;
+    rateLimitType?: 'default' | 'userMe' | 'submission';
   } = {
     requireAuth: true,
     connectDb: true,
+    rateLimitType: 'default'
   }
 ) {
   return async function (req: NextRequest, { params }: { params: any }) {
     try {
+      // Apply rate limiting based on endpoint type
+      const rateLimitType = options.rateLimitType || 'default';
+      const rateLimitOptions = rateLimits[rateLimitType];
+      const rateLimitResult = rateLimit(req, rateLimitOptions);
+      
+      // Check if rate limit is exceeded
+      if (rateLimitResult.limited) {
+        return NextResponse.json({ 
+          error: 'Rate limit exceeded', 
+          message: rateLimitResult.message 
+        }, { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitOptions.maxRequests.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': (Math.floor(Date.now() / 1000) + Math.floor(rateLimitOptions.windowMs / 1000)).toString(),
+          }
+        });
+      }
+      
       // Handle authentication if required
       let token = null;
       if (options.requireAuth) {
@@ -62,7 +88,14 @@ export function withApiMiddleware(
       }
 
       // Call the handler with authenticated token and database
-      return await handler(req, { params, token, db });
+      const response = await handler(req, { params, token, db });
+      
+      // Add rate limit headers to the response
+      response.headers.set('X-RateLimit-Limit', rateLimitOptions.maxRequests.toString());
+      response.headers.set('X-RateLimit-Remaining', rateLimitResult.remaining.toString());
+      response.headers.set('X-RateLimit-Reset', (Math.floor(Date.now() / 1000) + Math.floor(rateLimitOptions.windowMs / 1000)).toString());
+
+      return response;
     } catch (error) {
       console.error('API Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';

@@ -16,6 +16,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { useAccount } from 'wagmi';
+import { useUser } from '@/lib/hooks/useUser';
 
 // Define interface for user data structure
 interface UserData {
@@ -98,90 +99,49 @@ export default function Settings() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Fetch user data from API
+  const { user, isLoading: isUserLoading, mutate: refreshUser } = useUser();
+
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Prepare headers with wallet address if available
-        const headers: HeadersInit = { 'Content-Type': 'application/json' };
-        const walletAddress = address || localStorage.getItem('walletAddress');
-        
-        if (walletAddress) {
-          headers['x-wallet-address'] = walletAddress;
-          console.log('Using wallet address for fetch:', walletAddress);
-        }
-        
-        // First try to get user data from /api/users/me
-        console.log('Fetching user data from API...');
-        const response = await fetch('/api/users/me', { 
-          headers,
-          cache: 'no-store'
-        });
-        
-        if (!response.ok) {
-          console.error('Failed to fetch user data:', response.status);
-          throw new Error(`Failed to fetch user data: ${response.status}`);
-        }
-        
-        const { user } = await response.json();
-        console.log('Fetched user data:', user);
-        
-        if (!user) {
-          throw new Error('User data not found');
-        }
-        
-        // Update localStorage with user data
-        if (user.role) {
-          localStorage.setItem('userRole', user.role);
-        }
-        
-        if (user.address) {
-          localStorage.setItem('walletAddress', user.address);
-        }
-        
-        // Set form data from API response - ensure we capture ALL fields
+    // Use cached user data from custom hook
+    if (user) {
+      console.log('Using cached user data for settings:', user);
+      setFormData(user);
+      
+      // Pre-fill form with existing user data
+      if (user.profile_data) {
+        const profileData = user.profile_data;
         setFormData({
-          ...defaultUserData,
           id: user.id || '',
-          address: user.address || walletAddress || '',
-          name: user.profile_data?.name || '',
-          email: session?.user?.email || user.profile_data?.email || '',
-          bio: user.profile_data?.bio || '',
-          writing_experience: user.profile_data?.writing_experience || '',
-          avatar: user.profile_data?.avatar || defaultUserData.avatar,
-          website: user.profile_data?.website || '',
-          genres: user.profile_data?.genres || [],
-          project_types: user.profile_data?.project_types || [],
-          social: user.profile_data?.social || defaultUserData.social,
-          // Preserve any additional data we have in profile_data
-          ...(user.profile_data?.notifications && { notifications: user.profile_data.notifications }),
-          ...(user.profile_data?.preferences && { preferences: user.profile_data.preferences }),
+          address: user.address || '',
+          name: profileData.name || '',
+          email: profileData.email || '',
+          bio: profileData.bio || '',
+          avatar: profileData.avatar || '',
+          website: profileData.website || '',
+          writing_experience: profileData.writing_experience || '',
+          portfolio_url: profileData.portfolio_url || '',
+          genres: profileData.genres || [],
+          project_types: profileData.project_types || [],
+          social: profileData.social || {
+            twitter: '',
+            linkedin: '',
+            instagram: ''
+          },
+          notifications: profileData.notifications || {
+            email: true,
+            push: true,
+            newsletter: false,
+            projectAlerts: true
+          },
+          preferences: profileData.preferences || {
+            theme: 'system',
+            language: 'en',
+            timezone: 'UTC'
+          }
         });
-      } catch (err) {
-        console.error('Error fetching user data:', err);
-        setError('Failed to load profile data. Please try again later.');
-        
-        // If API fails, try to use data from localStorage as fallback
-        const storedName = localStorage.getItem('userName');
-        const walletAddress = address || localStorage.getItem('walletAddress');
-        
-        if (storedName || walletAddress) {
-          setFormData({
-            ...formData,
-            name: storedName || formData.name,
-            address: walletAddress || formData.address
-          });
-        }
-      } finally {
-        setIsLoading(false);
       }
-    };
-    
-    fetchUserData();
-  }, [session, status, address, isConnected]);
+    }
+  }, [user]);
 
   const handleSave = async () => {
     try {
@@ -249,6 +209,9 @@ export default function Settings() {
       setTimeout(() => {
         setSuccessMessage(null);
       }, 3000);
+      
+      // Refresh the user data in the cache
+      refreshUser();
     } catch (err) {
       console.error('Error updating user data:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while saving your profile');
