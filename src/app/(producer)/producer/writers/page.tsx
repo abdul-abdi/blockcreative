@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -18,119 +18,149 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
 
-// Mock data for writers
-const writers = [
-  {
-    id: 1,
-    name: 'Sarah Johnson',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330',
-    bio: 'Award-winning screenwriter specializing in sci-fi and drama. Former finalist in the Academy Nicholl Fellowships.',
-    genres: ['Science Fiction', 'Drama', 'Thriller'],
-    rating: 4.9,
-    totalSubmissions: 24,
-    selectedSubmissions: 18,
-    earnings: '$125K',
-    averageScore: 92,
-    recentWork: [
-      {
-        title: 'The Last Frontier',
-        studio: 'Paramount Pictures',
-        score: 94,
-        analysis: {
-          plotStrength: 95,
-          characterDevelopment: 92,
-          marketPotential: 94,
-          uniqueness: 93,
-          pacing: 91,
-          dialogue: 95,
-          structure: 92,
-          theme: 94
-        }
-      }
-    ],
-    availability: 'Available',
-    location: 'Los Angeles, CA',
-  },
-  {
-    id: 2,
-    name: 'Michael Chen',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d',
-    bio: 'Experienced TV writer with credits on multiple streaming series. Specializes in character-driven narratives.',
-    genres: ['Drama', 'Comedy', 'Crime'],
-    rating: 4.8,
-    totalSubmissions: 32,
-    selectedSubmissions: 22,
-    earnings: '$180K',
-    averageScore: 90,
-    recentWork: [
-      {
-        title: 'City Lights',
-        studio: 'Netflix',
-        score: 91,
-        analysis: {
-          plotStrength: 90,
-          characterDevelopment: 94,
-          marketPotential: 89,
-          uniqueness: 88,
-          pacing: 90,
-          dialogue: 93,
-          structure: 89,
-          theme: 91
-        }
-      }
-    ],
-    availability: 'Available',
-    location: 'New York, NY',
-  },
-  {
-    id: 3,
-    name: 'Emma Rodriguez',
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80',
-    bio: 'Rising talent in thriller and horror genres. Known for unique plot twists and compelling character arcs.',
-    genres: ['Thriller', 'Horror', 'Mystery'],
-    rating: 4.7,
-    totalSubmissions: 18,
-    selectedSubmissions: 12,
-    earnings: '$85K',
-    averageScore: 88,
-    recentWork: [
-      {
-        title: 'Dark Corridors',
-        studio: 'A24',
-        score: 89,
-        analysis: {
-          plotStrength: 88,
-          characterDevelopment: 87,
-          marketPotential: 86,
-          uniqueness: 91,
-          pacing: 89,
-          dialogue: 86,
-          structure: 88,
-          theme: 87
-        }
-      }
-    ],
-    availability: 'In Discussion',
-    location: 'Austin, TX',
-  },
-];
+// Define interfaces for data types
+interface Analysis {
+  plotStrength: number;
+  characterDevelopment: number;
+  marketPotential: number;
+  uniqueness: number;
+  pacing: number;
+  dialogue: number;
+  structure: number;
+  theme: number;
+}
 
-const genres = [
-  'All Genres',
-  'Science Fiction',
-  'Drama',
-  'Thriller',
-  'Horror',
-  'Comedy',
-  'Crime',
-  'Mystery',
-];
+interface RecentWork {
+  title: string;
+  studio: string;
+  score: number;
+  analysis?: Analysis;
+}
+
+interface Writer {
+  id: number | string;
+  name: string;
+  avatar?: string;
+  bio: string;
+  genres: string[];
+  rating: number;
+  totalSubmissions: number;
+  selectedSubmissions: number;
+  earnings: string;
+  averageScore: number;
+  recentWork: RecentWork[];
+  location?: string;
+}
 
 export default function FindWriters() {
-  const [selectedWriter, setSelectedWriter] = useState(writers[0]);
+  const [writers, setWriters] = useState<Writer[]>([]);
+  const [filteredWriters, setFilteredWriters] = useState<Writer[]>([]);
+  const [selectedWriter, setSelectedWriter] = useState<Writer | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState('All Genres');
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedGenre, setSelectedGenre] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Fetch writers from API
+  useEffect(() => {
+    const fetchWriters = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Prepare headers with wallet address if available
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        const walletAddress = localStorage.getItem('walletAddress');
+        
+        if (walletAddress) {
+          headers['x-wallet-address'] = walletAddress;
+        }
+        
+        // TODO: Replace with actual API endpoint once available
+        // const response = await fetch('/api/producer/writers', { headers });
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   setWriters(data.writers);
+        //   setFilteredWriters(data.writers);
+        //   if (data.writers.length > 0) {
+        //     setSelectedWriter(data.writers[0]);
+        //   }
+        // } else {
+        //   setError('Failed to load writers');
+        // }
+        
+        // Temporary empty data until the API is implemented
+        setWriters([]);
+        setFilteredWriters([]);
+        setSelectedWriter(null);
+        
+      } catch (error) {
+        console.error('Error fetching writers:', error);
+        setError('Failed to load writers. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchWriters();
+  }, []);
+  
+  // Filter writers based on search query and genre
+  useEffect(() => {
+    if (writers.length === 0) {
+      setFilteredWriters([]);
+      return;
+    }
+    
+    let result = [...writers];
+    
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(writer => 
+        writer.name.toLowerCase().includes(query) ||
+        writer.bio.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply genre filter
+    if (selectedGenre !== 'all') {
+      result = result.filter(writer => 
+        writer.genres.some(genre => genre.toLowerCase() === selectedGenre.toLowerCase())
+      );
+    }
+    
+    setFilteredWriters(result);
+    
+    // Update selected writer if needed
+    if (result.length > 0 && (!selectedWriter || !result.find(w => w.id === selectedWriter.id))) {
+      setSelectedWriter(result[0]);
+    } else if (result.length === 0) {
+      setSelectedWriter(null);
+    }
+  }, [searchQuery, selectedGenre, writers, selectedWriter]);
+  
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+  
+  const handleGenreChange = (genre: string) => {
+    setSelectedGenre(genre);
+  };
+  
+  const handleWriterSelect = (writer: Writer) => {
+    setSelectedWriter(writer);
+  };
+  
+  if (isLoading) {
+    return (
+      <DashboardLayout userType="producer">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userType="producer">
@@ -150,12 +180,12 @@ export default function FindWriters() {
                 type="text"
                 placeholder="Search writers by name, genre, or location..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white"
               />
             </div>
             <button
-              onClick={() => setShowFilters(!showFilters)}
+              onClick={() => setSelectedGenre('all')}
               className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white hover:bg-white/10 transition-colors flex items-center gap-2"
             >
               <AdjustmentsHorizontalIcon className="h-5 w-5" />
@@ -163,17 +193,17 @@ export default function FindWriters() {
             </button>
           </div>
 
-          {showFilters && (
+          {selectedGenre !== 'all' && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               className="p-4 bg-white/5 rounded-lg border border-white/10"
             >
               <div className="flex flex-wrap gap-2">
-                {genres.map((genre) => (
+                {['All Genres', 'Science Fiction', 'Drama', 'Thriller', 'Horror', 'Comedy', 'Crime', 'Mystery'].map((genre) => (
                   <button
                     key={genre}
-                    onClick={() => setSelectedGenre(genre)}
+                    onClick={() => handleGenreChange(genre)}
                     className={`px-3 py-1 rounded-full text-sm transition-all ${
                       selectedGenre === genre
                         ? 'bg-[rgb(var(--accent-primary))] text-white'
@@ -192,31 +222,37 @@ export default function FindWriters() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Writers List */}
           <div className="space-y-4">
-            {writers.map((writer) => (
+            {filteredWriters.map((writer) => (
               <motion.div
                 key={writer.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`card cursor-pointer ${
-                  selectedWriter.id === writer.id ? 'border-[rgb(var(--accent-primary))]' : ''
+                  selectedWriter?.id === writer.id ? 'border-[rgb(var(--accent-primary))]' : ''
                 }`}
-                onClick={() => setSelectedWriter(writer)}
+                onClick={() => handleWriterSelect(writer)}
               >
                 <div className="p-6">
                   <div className="flex items-start gap-4">
                     <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/10">
-                      <Image
-                        src={writer.avatar}
-                        alt={writer.name}
-                        fill
-                        className="object-cover"
-                      />
+                      {writer.avatar ? (
+                        <Image
+                          src={writer.avatar}
+                          alt={writer.name}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white text-xl font-bold">
+                          {writer.name.charAt(0)}
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
                         <div>
                           <h3 className="text-xl font-bold text-white">{writer.name}</h3>
-                          <p className="text-sm text-gray-400">{writer.location}</p>
+                          <p className="text-sm text-gray-400">{writer.location || 'Unknown location'}</p>
                         </div>
                         <div className="flex items-center gap-1 text-yellow-400">
                           <StarIconSolid className="w-5 h-5" />

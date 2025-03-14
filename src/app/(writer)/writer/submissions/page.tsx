@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -17,75 +17,31 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
 
-// Mock data for submissions
-const submissions = [
-  {
-    id: 1,
-    title: 'The Last Frontier',
-    project: 'Sci-Fi Feature Film',
-    studio: 'Paramount Pictures',
-    submittedDate: '2024-03-15',
-    status: 'Under Review',
-    rank: 2,
-    score: 92,
-    analysis: {
-      plotStrength: 90,
-      characterDevelopment: 88,
-      marketPotential: 94,
-      uniqueness: 92,
-      pacing: 91,
-      dialogue: 89,
-      structure: 93,
-      theme: 91
-    },
-    feedback: 'Strong concept with excellent market potential. Character arcs could be developed further.',
-    bounty: '$150K',
-  },
-  {
-    id: 2,
-    title: 'Echoes of Tomorrow',
-    project: 'Drama Series Pilot',
-    studio: 'HBO Max',
-    submittedDate: '2024-03-10',
-    status: 'Selected',
-    rank: 1,
-    score: 95,
-    analysis: {
-      plotStrength: 95,
-      characterDevelopment: 96,
-      marketPotential: 92,
-      uniqueness: 94,
-      pacing: 93,
-      dialogue: 96,
-      structure: 94,
-      theme: 95
-    },
-    feedback: 'Exceptional character work and dialogue. Compelling narrative structure.',
-    bounty: '$75K',
-  },
-  {
-    id: 3,
-    title: 'Dark Corridors',
-    project: 'Thriller Feature',
-    studio: 'A24',
-    submittedDate: '2024-03-05',
-    status: 'Not Selected',
-    rank: 4,
-    score: 85,
-    analysis: {
-      plotStrength: 84,
-      characterDevelopment: 86,
-      marketPotential: 83,
-      uniqueness: 85,
-      pacing: 87,
-      dialogue: 84,
-      structure: 85,
-      theme: 86
-    },
-    feedback: 'Intriguing premise but needs more unique elements to stand out.',
-    bounty: '$100K',
-  },
-];
+// Define interfaces for data types
+interface Analysis {
+  plotStrength: number;
+  characterDevelopment: number;
+  marketPotential: number;
+  uniqueness: number;
+  pacing: number;
+  dialogue: number;
+  structure: number;
+  theme: number;
+}
+
+interface Submission {
+  id: number | string;
+  title: string;
+  project: string;
+  studio: string;
+  submittedDate: string;
+  status: string;
+  rank?: number;
+  score: number;
+  analysis?: Analysis;
+  feedback?: string;
+  bounty?: string;
+}
 
 const statusColors = {
   'Under Review': 'text-yellow-400',
@@ -100,8 +56,76 @@ const statusIcons = {
 };
 
 export default function MySubmissions() {
-  const [selectedSubmission, setSelectedSubmission] = useState(submissions[0]);
-  const [filter, setFilter] = useState('all');
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch submissions from API
+  useEffect(() => {
+    const fetchSubmissions = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Prepare headers with wallet address if available
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        const walletAddress = localStorage.getItem('walletAddress');
+        
+        if (walletAddress) {
+          headers['x-wallet-address'] = walletAddress;
+        }
+        
+        // TODO: Replace with actual API endpoint once available
+        // const response = await fetch('/api/writer/submissions', { headers });
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   setSubmissions(data.submissions);
+        //   if (data.submissions.length > 0) {
+        //     setSelectedSubmission(data.submissions[0]);
+        //   }
+        // } else {
+        //   setError('Failed to load submissions');
+        // }
+        
+        // Temporary empty data until the API is implemented
+        setSubmissions([]);
+        setSelectedSubmission(null);
+        
+      } catch (error) {
+        console.error('Error fetching submissions:', error);
+        setError('Failed to load submissions. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchSubmissions();
+  }, []);
+  
+  // Filter submissions based on activeFilter
+  const filteredSubmissions = submissions.filter(submission => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'review' && submission.status === 'Under Review') return true;
+    if (activeFilter === 'selected' && submission.status === 'Selected') return true;
+    if (activeFilter === 'rejected' && submission.status === 'Rejected') return true;
+    return false;
+  });
+
+  const handleSubmissionClick = (submission: Submission) => {
+    setSelectedSubmission(submission);
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout userType="writer">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userType="writer">
@@ -126,9 +150,9 @@ export default function MySubmissions() {
           {['all', 'Under Review', 'Selected', 'Not Selected'].map((status) => (
             <button
               key={status}
-              onClick={() => setFilter(status)}
+              onClick={() => setActiveFilter(status)}
               className={`px-4 py-2 rounded-lg transition-all ${
-                filter === status
+                activeFilter === status
                   ? 'bg-[rgb(var(--accent-primary))] text-white'
                   : 'bg-white/5 text-gray-400 hover:bg-white/10'
               }`}
@@ -142,53 +166,51 @@ export default function MySubmissions() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Submissions List */}
           <div className="space-y-4">
-            {submissions
-              .filter(sub => filter === 'all' || sub.status === filter)
-              .map((submission) => {
-                const StatusIcon = statusIcons[submission.status as keyof typeof statusIcons];
-                return (
-                  <motion.div
-                    key={submission.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`card cursor-pointer ${
-                      selectedSubmission.id === submission.id ? 'border-[rgb(var(--accent-primary))]' : ''
-                    }`}
-                    onClick={() => setSelectedSubmission(submission)}
-                  >
-                    <div className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="text-xl font-bold text-white mb-1">{submission.title}</h3>
-                          <p className="text-sm text-[rgb(var(--accent-primary))] mb-2">{submission.project}</p>
-                          <p className="text-sm text-gray-400">{submission.studio}</p>
-                        </div>
-                        <div className={`flex items-center gap-1 ${statusColors[submission.status as keyof typeof statusColors]}`}>
-                          <StatusIcon className="w-5 h-5" />
-                          <span>{submission.status}</span>
-                        </div>
+            {filteredSubmissions.map((submission) => {
+              const StatusIcon = statusIcons[submission.status as keyof typeof statusIcons];
+              return (
+                <motion.div
+                  key={submission.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`card cursor-pointer ${
+                    selectedSubmission?.id === submission.id ? 'border-[rgb(var(--accent-primary))]' : ''
+                  }`}
+                  onClick={() => handleSubmissionClick(submission)}
+                >
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-white mb-1">{submission.title}</h3>
+                        <p className="text-sm text-[rgb(var(--accent-primary))] mb-2">{submission.project}</p>
+                        <p className="text-sm text-gray-400">{submission.studio}</p>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <ClockIcon className="w-5 h-5" />
-                          <span>Submitted: {submission.submittedDate}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <StarIcon className="w-5 h-5" />
-                          <span>Score: {submission.score}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <ArrowTrendingUpIcon className="w-5 h-5" />
-                          <span>Rank: #{submission.rank}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <ChartBarIcon className="w-5 h-5" />
-                          <span>Bounty: {submission.bounty}</span>
-                        </div>
+                      <div className={`flex items-center gap-1 ${statusColors[submission.status as keyof typeof statusColors]}`}>
+                        <StatusIcon className="w-5 h-5" />
+                        <span>{submission.status}</span>
                       </div>
                     </div>
-                  </motion.div>
-                );
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <ClockIcon className="w-5 h-5" />
+                        <span>Submitted: {submission.submittedDate}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <StarIcon className="w-5 h-5" />
+                        <span>Score: {submission.score}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <ArrowTrendingUpIcon className="w-5 h-5" />
+                        <span>Rank: #{submission.rank}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <ChartBarIcon className="w-5 h-5" />
+                        <span>Bounty: {submission.bounty}</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
             })}
           </div>
 

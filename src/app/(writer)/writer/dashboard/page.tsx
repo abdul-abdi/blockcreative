@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
+import { useSession } from 'next-auth/react';
 
 // Define types for our data
 interface Submission {
@@ -60,8 +61,8 @@ interface StatItem {
   color: GradientColor;
 }
 
-// Stats structure (would normally come from an API)
-const statsStructure: StatItem[] = [
+// Default empty data structure
+const emptyStats: StatItem[] = [
   {
     id: 'submissions',
     name: 'Active Submissions',
@@ -101,12 +102,15 @@ const statsStructure: StatItem[] = [
 ];
 
 export default function WriterDashboard() {
+  const [userData, setUserData] = useState<any>(null);
   const [userName, setUserName] = useState('');
-  const [stats, setStats] = useState<StatItem[]>(statsStructure);
+  const [stats, setStats] = useState<StatItem[]>(emptyStats);
   const [activeSubmissions, setActiveSubmissions] = useState<Submission[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { data: session, status } = useSession();
 
   // Helper function to render the correct icon based on type
   const renderIcon = (iconType: IconType) => {
@@ -126,125 +130,92 @@ export default function WriterDashboard() {
 
   // Load user data
   useEffect(() => {
-    // In a real app, this would fetch data from an API
     const fetchData = async () => {
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        setIsLoading(true);
+        setError(null);
         
-        // Get user data from localStorage
-        const storedName = localStorage.getItem('userName');
+        // Prepare headers with wallet address if available
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        const walletAddress = localStorage.getItem('walletAddress');
+        
+        if (walletAddress) {
+          headers['x-wallet-address'] = walletAddress;
+          console.log('Using wallet address for dashboard data fetch:', walletAddress);
+        }
+        
+        // Try to get user data from API
+        console.log('Fetching writer data for dashboard...');
+        const response = await fetch('/api/users/me', { 
+          headers,
+          cache: 'no-store'
+        });
+        
+        if (response.ok) {
+          const { user } = await response.json();
+          console.log('Fetched user data for dashboard:', user);
+          
+          if (user) {
+            setUserData(user);
+            setUserName(user.profile_data?.name || 'Writer');
+            
+            // Update localStorage with user data
+            if (user.profile_data?.name) {
+              localStorage.setItem('userName', user.profile_data.name);
+            }
+            
+            if (user.address) {
+              localStorage.setItem('walletAddress', user.address);
+            }
+            
+            // Update stats based on real user data
+            // For now we'll use empty data until the API is implemented
+            setStats(emptyStats);
+            
+            // In a real app, you would fetch real submissions and projects
+            // TODO: Replace with actual API calls once available
+            // const submissionsResponse = await fetch('/api/writer/submissions', { headers });
+            // if (submissionsResponse.ok) {
+            //   const submissionsData = await submissionsResponse.json();
+            //   setActiveSubmissions(submissionsData.submissions);
+            //   if (submissionsData.submissions.length > 0) {
+            //     setSelectedSubmission(submissionsData.submissions[0]);
+            //   }
+            // }
+            
+            // const projectsResponse = await fetch('/api/writer/available-projects', { headers });
+            // if (projectsResponse.ok) {
+            //   const projectsData = await projectsResponse.json();
+            //   setAvailableProjects(projectsData.projects);
+            // }
+            
+            setActiveSubmissions([]);
+            setAvailableProjects([]);
+          }
+        } else {
+          // If API call fails, try to use session or localStorage
+          console.error('Failed to fetch user data for dashboard:', response.status);
+          const errorData = await response.json();
+          console.log('Error details:', errorData);
+          
+          // Fallback to session or localStorage
+          const storedName = session?.user?.name || localStorage.getItem('userName');
+          setUserName(storedName || 'Writer');
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Failed to load dashboard data');
+        
+        // Fallback to session name or localStorage
+        const storedName = session?.user?.name || localStorage.getItem('userName');
         setUserName(storedName || 'Writer');
-        
-        // Simulate fetching stats data
-        const newStats: StatItem[] = [
-          {
-            id: 'submissions',
-            name: 'Active Submissions',
-            value: '3',
-            change: '+1 this week',
-            trend: 'up',
-            iconType: 'document',
-            color: 'from-purple-500 to-indigo-500',
-          },
-          {
-            id: 'score',
-            name: 'Average AI Score',
-            value: '87',
-            change: '+3 points',
-            trend: 'up',
-            iconType: 'chart',
-            color: 'from-emerald-500 to-teal-500',
-          },
-          {
-            id: 'earnings',
-            name: 'Total Earnings',
-            value: '$2.5K',
-            change: '+$500 this month',
-            trend: 'up',
-            iconType: 'currency',
-            color: 'from-amber-500 to-orange-500',
-          },
-          {
-            id: 'success',
-            name: 'Success Rate',
-            value: '75%',
-            change: '+5% improvement',
-            trend: 'up',
-            iconType: 'star',
-            color: 'from-pink-500 to-rose-500',
-          },
-        ];
-        setStats(newStats);
-        
-        // Simulate fetching submissions data
-        const submissionsData: Submission[] = [
-          {
-            id: 1,
-            title: 'The Journey Home',
-            project: 'Drama Feature',
-            studio: 'Indie Productions',
-            submitted: '2 days ago',
-            status: 'Under Review',
-            rank: 2,
-            score: 88,
-          },
-          {
-            id: 2,
-            title: 'Midnight Chronicles',
-            project: 'Sci-Fi Series',
-            studio: 'StreamFlix',
-            submitted: '1 week ago',
-            status: 'Shortlisted',
-            rank: 3,
-            score: 85,
-          },
-          {
-            id: 3,
-            title: 'The Last Stand',
-            project: 'Action Feature',
-            studio: 'Global Studios',
-            submitted: '2 weeks ago',
-            status: 'In Competition',
-            rank: 5,
-            score: 82,
-          },
-        ];
-        setActiveSubmissions(submissionsData);
-        setSelectedSubmission(submissionsData[0]);
-        
-        // Simulate fetching available projects
-        const projectsData: Project[] = [
-          {
-            id: 1,
-            title: 'Drama Feature Film',
-            studio: 'Paramount Pictures',
-            budget: '$50K-100K',
-            deadline: '2 weeks',
-            submissions: 8,
-            requirements: ['Character-driven', 'Social themes', 'Original concept'],
-          },
-          {
-            id: 2,
-            title: 'Comedy Series',
-            studio: 'Amazon Studios',
-            budget: '$30K-75K',
-            deadline: '3 weeks',
-            submissions: 12,
-            requirements: ['Ensemble cast', 'Workplace setting', 'Series potential'],
-          },
-        ];
-        setAvailableProjects(projectsData);
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Error fetching data:', error);
+      } finally {
         setIsLoading(false);
       }
     };
     
     fetchData();
-  }, []);
+  }, [session, status]);
   
   // Loading state
   if (isLoading) {

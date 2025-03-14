@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   CurrencyDollarIcon,
@@ -14,89 +14,80 @@ import {
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
 
-// Mock data for budget
-const budgetData = {
+// Define interfaces for data types
+interface BudgetOverview {
+  totalBudget: {
+    value: string;
+    allocated: string;
+    remaining: string;
+  };
+  activeBounties: {
+    value: string;
+    change: string;
+    trend: 'up' | 'down' | 'neutral';
+  };
+  completedPayments: {
+    value: string;
+    change: string;
+    trend: 'up' | 'down' | 'neutral';
+  };
+  averageBounty: {
+    value: string;
+    change: string;
+    trend: 'up' | 'down' | 'neutral';
+  };
+}
+
+interface Transaction {
+  id: number | string;
+  title: string;
+  writer: string;
+  amount: string;
+  status: 'Completed' | 'Pending' | 'Failed';
+  date: string;
+  type: string;
+}
+
+interface BudgetAllocation {
+  category: string;
+  allocated: string;
+  used: string;
+  remaining: string;
+  percentage: number;
+}
+
+interface BudgetData {
+  overview: BudgetOverview;
+  recentTransactions: Transaction[];
+  budgetAllocations: BudgetAllocation[];
+}
+
+// Initialize with empty data
+const emptyBudgetData: BudgetData = {
   overview: {
     totalBudget: {
-      value: '$500K',
-      allocated: '$325K',
-      remaining: '$175K',
+      value: '$0',
+      allocated: '$0',
+      remaining: '$0',
     },
     activeBounties: {
-      value: '$325K',
-      change: '+$50K',
-      trend: 'up',
+      value: '$0',
+      change: '$0',
+      trend: 'neutral',
     },
     completedPayments: {
-      value: '$175K',
-      change: '+$25K',
-      trend: 'up',
+      value: '$0',
+      change: '$0',
+      trend: 'neutral',
     },
     averageBounty: {
-      value: '$25K',
-      change: '+$2K',
-      trend: 'up',
+      value: '$0',
+      change: '$0',
+      trend: 'neutral',
     },
   },
-  recentTransactions: [
-    {
-      id: 1,
-      title: 'The Last Frontier',
-      writer: 'Sarah Johnson',
-      amount: '$45K',
-      status: 'Completed',
-      date: '2024-03-15',
-      type: 'Bounty Payment',
-    },
-    {
-      id: 2,
-      title: 'Dark Corridors',
-      writer: 'Anna Lee',
-      amount: '$35K',
-      status: 'Pending',
-      date: '2024-03-14',
-      type: 'Bounty Payment',
-    },
-    {
-      id: 3,
-      title: 'Q2 Budget Allocation',
-      amount: '$150K',
-      status: 'Completed',
-      date: '2024-03-10',
-      type: 'Budget Deposit',
-    },
-  ],
-  activeBounties: [
-    {
-      id: 1,
-      title: 'Sci-Fi Feature Film',
-      amount: '$150K',
-      submissions: 24,
-      deadline: '2024-04-15',
-      allocated: '2024-03-01',
-    },
-    {
-      id: 2,
-      title: 'Drama Series Pilot',
-      amount: '$75K',
-      submissions: 18,
-      deadline: '2024-04-20',
-      allocated: '2024-03-05',
-    },
-    {
-      id: 3,
-      title: 'Thriller Feature',
-      amount: '$100K',
-      submissions: 15,
-      deadline: '2024-04-25',
-      allocated: '2024-03-10',
-    },
-  ],
-  budgetHistory: {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-    allocated: [200000, 250000, 300000, 325000, 375000, 500000],
-    spent: [150000, 200000, 225000, 275000, 300000, 325000],
-  },
+  recentTransactions: [],
+  budgetAllocations: [],
 };
 
 const statusColors = {
@@ -112,6 +103,64 @@ const statusIcons = {
 };
 
 export default function Budget() {
+  const [budgetData, setBudgetData] = useState<BudgetData>(emptyBudgetData);
+  const [filter, setFilter] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Fetch budget data from API
+  useEffect(() => {
+    const fetchBudgetData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Prepare headers with wallet address if available
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        const walletAddress = localStorage.getItem('walletAddress');
+        
+        if (walletAddress) {
+          headers['x-wallet-address'] = walletAddress;
+        }
+        
+        // TODO: Replace with actual API endpoint once available
+        // const response = await fetch('/api/producer/budget', { headers });
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   setBudgetData(data);
+        // } else {
+        //   setError('Failed to load budget data');
+        // }
+        
+        // Temporary empty data until the API is implemented
+        setBudgetData(emptyBudgetData);
+        
+      } catch (error) {
+        console.error('Error fetching budget data:', error);
+        setError('Failed to load budget data. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchBudgetData();
+  }, []);
+  
+  if (isLoading) {
+    return (
+      <DashboardLayout userType="producer">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const filteredTransactions = budgetData.recentTransactions.filter((transaction) => {
+    if (filter === 'all') return true;
+    return transaction.status.toLowerCase() === filter.toLowerCase();
+  });
+
   return (
     <DashboardLayout userType="producer">
       <div className="p-6 md:p-8 space-y-8">
@@ -185,24 +234,24 @@ export default function Budget() {
             <div className="p-6">
               <h3 className="text-xl font-bold text-white mb-6">Active Bounties</h3>
               <div className="space-y-6">
-                {budgetData.activeBounties.map((bounty) => (
-                  <div key={bounty.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                {budgetData.budgetAllocations.map((allocation) => (
+                  <div key={allocation.category} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
                     <div>
-                      <h4 className="font-semibold text-white mb-1">{bounty.title}</h4>
+                      <h4 className="font-semibold text-white mb-1">{allocation.category}</h4>
                       <div className="flex items-center gap-4 text-sm text-gray-400">
                         <span className="flex items-center gap-1">
                           <DocumentTextIcon className="w-4 h-4" />
-                          {bounty.submissions} submissions
+                          {allocation.used} used
                         </span>
                         <span className="flex items-center gap-1">
                           <ClockIcon className="w-4 h-4" />
-                          Due: {bounty.deadline}
+                          Remaining: {allocation.remaining}
                         </span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-white">{bounty.amount}</div>
-                      <div className="text-sm text-gray-400">Allocated: {bounty.allocated}</div>
+                      <div className="text-lg font-bold text-white">{allocation.allocated}</div>
+                      <div className="text-sm text-gray-400">Allocated: {allocation.allocated}</div>
                     </div>
                   </div>
                 ))}
@@ -219,7 +268,7 @@ export default function Budget() {
             <div className="p-6">
               <h3 className="text-xl font-bold text-white mb-6">Recent Transactions</h3>
               <div className="space-y-4">
-                {budgetData.recentTransactions.map((transaction) => {
+                {filteredTransactions.map((transaction) => {
                   const StatusIcon = statusIcons[transaction.status as keyof typeof statusIcons];
                   return (
                     <div key={transaction.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
