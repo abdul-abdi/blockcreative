@@ -105,7 +105,6 @@ export default function Settings() {
     // Use cached user data from custom hook
     if (user) {
       console.log('Using cached user data for settings:', user);
-      setFormData(user);
       
       // Pre-fill form with existing user data
       if (user.profile_data) {
@@ -116,7 +115,7 @@ export default function Settings() {
           name: profileData.name || '',
           email: profileData.email || '',
           bio: profileData.bio || '',
-          avatar: profileData.avatar || '',
+          avatar: profileData.avatar || defaultUserData.avatar,
           website: profileData.website || '',
           writing_experience: profileData.writing_experience || '',
           portfolio_url: profileData.portfolio_url || '',
@@ -139,9 +138,22 @@ export default function Settings() {
             timezone: 'UTC'
           }
         });
+      } else {
+        // If no profile_data exists, still use the available user fields
+        setFormData({
+          ...defaultUserData,
+          id: user.id || '',
+          address: user.address || '',
+          name: user.name || '',
+          email: user.email || ''
+        });
       }
+      setIsLoading(false);
+    } else if (!isUserLoading) {
+      // If user loading is complete but no user data found
+      setIsLoading(false);
     }
-  }, [user]);
+  }, [user, isUserLoading]);
 
   const handleSave = async () => {
     try {
@@ -162,21 +174,31 @@ export default function Settings() {
         console.warn('No wallet address available for save operation');
       }
       
-      // Prepare complete profile data object
+      // Prepare complete profile data object ensuring all fields are included
       const profileData = {
+        // Personal info
         name: formData.name,
         bio: formData.bio,
-        avatar: formData.avatar,
+        avatar: formData.avatar || defaultUserData.avatar,
+        email: formData.email, // Include email if available
+        
+        // Professional info
         website: formData.website,
         writing_experience: formData.writing_experience,
-        genres: formData.genres,
-        project_types: formData.project_types,
-        social: formData.social,
-        // Include email if available
-        ...(formData.email && { email: formData.email }),
-        // Include other sections that might be editable
-        ...(formData.notifications && { notifications: formData.notifications }),
-        ...(formData.preferences && { preferences: formData.preferences })
+        portfolio_url: formData.portfolio_url,
+        genres: formData.genres || [],
+        project_types: formData.project_types || [],
+        
+        // Social links
+        social: formData.social || {
+          twitter: '',
+          linkedin: '',
+          instagram: ''
+        },
+        
+        // Include other preference sections
+        notifications: formData.notifications || defaultUserData.notifications,
+        preferences: formData.preferences || defaultUserData.preferences
       };
       
       console.log('Saving profile data:', profileData);
@@ -188,6 +210,7 @@ export default function Settings() {
         body: JSON.stringify({
           profile_data: profileData
         }),
+        credentials: 'include', // Important for cookie authentication
       });
       
       if (!response.ok) {
@@ -199,8 +222,11 @@ export default function Settings() {
       const responseData = await response.json();
       console.log('Save response:', responseData);
       
-      // Update localStorage
+      // Update localStorage with key user data
       localStorage.setItem('userName', formData.name);
+      if (formData.address) {
+        localStorage.setItem('walletAddress', formData.address);
+      }
       
       setSuccessMessage('Profile updated successfully!');
       setIsEditing(false);

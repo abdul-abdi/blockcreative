@@ -114,95 +114,117 @@ export default function Settings() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Fetch user data from API
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+  // Define fetchUserData outside useEffect as a memoized callback
+  const fetchUserData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Get wallet address from current state or localStorage
+      const currentWalletAddress = address || localStorage.getItem('walletAddress');
+      
+      // Prepare headers with wallet address if available
+      const headers: HeadersInit = { 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache' // Prevent browser cache issues
+      };
+      
+      if (currentWalletAddress) {
+        headers['x-wallet-address'] = currentWalletAddress;
+        console.log('Using wallet address for fetch:', currentWalletAddress);
+      }
+      
+      // Fetch user data from API with credentials for cookie authentication
+      console.log('Fetching producer data from API...');
+      const response = await fetch('/api/users/me', { 
+        headers,
+        credentials: 'include',
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to fetch user data:', response.status, response.statusText);
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch user data (${response.status}): ${errorText}`);
+      }
+      
+      const { user } = await response.json();
+      console.log('Fetched producer data:', user);
+      
+      if (!user) {
+        throw new Error('User data not found in API response');
+      }
+      
+      // Update localStorage with key user data for resilience
+      if (user.role) {
+        localStorage.setItem('userRole', user.role);
+      }
+      
+      if (user.address) {
+        localStorage.setItem('walletAddress', user.address);
+      }
+      
+      if (user.profile_data?.name) {
+        localStorage.setItem('userName', user.profile_data.name);
+      }
+      
+      // Set form data from API response with all necessary fallbacks
+      setFormData({
+        // Base info (ID and authentication)
+        id: user.id || '',
+        address: user.address || currentWalletAddress || '',
+        role: user.role || 'producer',
         
-        // Prepare headers with wallet address if available
-        const headers: HeadersInit = { 'Content-Type': 'application/json' };
-        const walletAddress = address || localStorage.getItem('walletAddress');
+        // Personal info
+        name: user.profile_data?.name || '',
+        email: session?.user?.email || user.profile_data?.email || '',
+        bio: user.profile_data?.bio || '',
+        avatar: user.profile_data?.avatar || defaultUserData.avatar,
+        location: user.profile_data?.location || '',
+        phone: user.profile_data?.phone || '',
         
-        if (walletAddress) {
-          headers['x-wallet-address'] = walletAddress;
-          console.log('Using wallet address for fetch:', walletAddress);
-        }
+        // Company info - handle multiple possible data structures for backwards compatibility
+        company: user.profile_data?.company_settings?.name || user.profile_data?.company || '',
+        company_settings: {
+          name: user.profile_data?.company_settings?.name || user.profile_data?.company || '',
+          website: user.profile_data?.company_settings?.website || user.profile_data?.website || '',
+          industry: user.profile_data?.company_settings?.industry || user.profile_data?.industry || 'Entertainment',
+          size: user.profile_data?.company_settings?.size || user.profile_data?.company_settings?.team_size || user.profile_data?.team_size || '',
+          budget_range: user.profile_data?.company_settings?.budget_range || user.profile_data?.budget_range || ''
+        },
         
-        // First try to get user data from /api/users/me
-        console.log('Fetching producer data from API...');
-        const response = await fetch('/api/users/me', { 
-          headers,
-          cache: 'no-store'
-        });
+        // Social media links
+        social: user.profile_data?.social || defaultUserData.social,
         
-        if (!response.ok) {
-          console.error('Failed to fetch user data:', response.status);
-          throw new Error(`Failed to fetch user data: ${response.status}`);
-        }
-        
-        const { user } = await response.json();
-        console.log('Fetched producer data:', user);
-        
-        if (!user) {
-          throw new Error('User data not found');
-        }
-        
-        // Update localStorage with user data
-        if (user.role) {
-          localStorage.setItem('userRole', user.role);
-        }
-        
-        if (user.address) {
-          localStorage.setItem('walletAddress', user.address);
-        }
-        
-        // Set form data from API response - ensure we capture ALL fields
+        // User preferences
+        notifications: user.profile_data?.notifications || defaultUserData.notifications,
+        preferences: user.profile_data?.preferences || defaultUserData.preferences
+      });
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setError('Failed to load profile data. Please try again later.');
+      
+      // If API fails, try to use data from localStorage as fallback
+      const storedName = localStorage.getItem('userName');
+      const storedAddress = localStorage.getItem('walletAddress');
+      const storedRole = localStorage.getItem('userRole');
+      
+      if (storedName || storedAddress || storedRole) {
+        console.log('Using localStorage fallback data for profile');
         setFormData({
           ...defaultUserData,
-          id: user.id || '',
-          address: user.address || walletAddress || '',
-          name: user.profile_data?.name || '',
-          email: session?.user?.email || user.profile_data?.email || '',
-          bio: user.profile_data?.bio || '',
-          avatar: user.profile_data?.avatar || defaultUserData.avatar,
-          location: user.profile_data?.location || '',
-          phone: user.profile_data?.phone || '',
-          company: user.profile_data?.company || '',
-          company_settings: {
-            // Get company name from multiple possible sources for backward compatibility
-            name: user.profile_data?.company_settings?.name || user.profile_data?.company || '',
-            website: user.profile_data?.website || user.profile_data?.company_settings?.website || '',
-            industry: user.profile_data?.industry || user.profile_data?.company_settings?.industry || 'Entertainment',
-            size: user.profile_data?.team_size || user.profile_data?.company_settings?.size || user.profile_data?.company_settings?.team_size || '',
-            budget_range: user.profile_data?.budget_range || user.profile_data?.company_settings?.budget_range || ''
-          },
-          social: user.profile_data?.social || defaultUserData.social,
-          // Preserve any additional data we have in profile_data
-          ...(user.profile_data?.notifications && { notifications: user.profile_data.notifications }),
-          ...(user.profile_data?.preferences && { preferences: user.profile_data.preferences }),
+          name: storedName || defaultUserData.name,
+          address: storedAddress || defaultUserData.address,
+          role: storedRole as any || defaultUserData.role
         });
-      } catch (err) {
-        console.error('Error fetching user data:', err);
-        setError('Failed to load profile data. Please try again later.');
-        
-        // If API fails, try to use data from localStorage as fallback
-        const storedName = localStorage.getItem('userName');
-        const walletAddress = address || localStorage.getItem('walletAddress');
-        
-        if (storedName || walletAddress) {
-          setFormData({
-            ...formData,
-            name: storedName || formData.name,
-            address: walletAddress || formData.address
-          });
-        }
-      } finally {
-        setIsLoading(false);
       }
-    };
-    
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch user data on component mount
+  useEffect(() => {
     fetchUserData();
   }, [session, status, address, isConnected]);
 
@@ -212,57 +234,64 @@ export default function Settings() {
       setError(null);
       setSuccessMessage(null);
       
+      // Get wallet address from current state or localStorage
+      const currentWalletAddress = address || localStorage.getItem('walletAddress');
+      
       // Prepare headers with wallet address if available
       const headers: HeadersInit = {
         'Content-Type': 'application/json'
       };
       
-      const walletAddress = address || localStorage.getItem('walletAddress');
-      if (walletAddress) {
-        headers['x-wallet-address'] = walletAddress;
-        console.log('Using wallet address for save:', walletAddress);
+      if (currentWalletAddress) {
+        headers['x-wallet-address'] = currentWalletAddress;
+        console.log('Using wallet address for save:', currentWalletAddress);
       } else {
         console.warn('No wallet address available for save operation');
       }
       
       // Prepare complete profile data object
       const profileData = {
+        // Personal info
         name: formData.name,
         bio: formData.bio,
-        avatar: formData.avatar,
+        avatar: formData.avatar || defaultUserData.avatar,
         location: formData.location,
         phone: formData.phone,
-        // Ensure company name is consistently stored in both company field and company_settings.name
-        company: formData.company_settings.name,
-        // Store full company settings object
+        email: formData.email,
+        
+        // Company info - store both flat and structured formats for compatibility
+        company: formData.company_settings.name, // For backwards compatibility
         company_settings: {
           name: formData.company_settings.name,
           website: formData.company_settings.website,
           industry: formData.company_settings.industry,
-          team_size: formData.company_settings.size,
+          size: formData.company_settings.size,
+          team_size: formData.company_settings.size, // Duplicate for compatibility
           budget_range: formData.company_settings.budget_range
         },
+        
+        // Also store flat versions for backwards compatibility
         website: formData.company_settings.website,
         industry: formData.company_settings.industry,
         team_size: formData.company_settings.size,
         budget_range: formData.company_settings.budget_range,
+        
+        // Social and preferences
         social: formData.social,
-        // Include email if available
-        ...(formData.email && { email: formData.email }),
-        // Include other sections that might be editable
-        ...(formData.notifications && { notifications: formData.notifications }),
-        ...(formData.preferences && { preferences: formData.preferences })
+        notifications: formData.notifications,
+        preferences: formData.preferences
       };
       
       console.log('Saving producer profile data:', profileData);
       
-      // Update user data - always use /api/users/me for consistency
+      // Update user data via the API
       const response = await fetch('/api/users/me', {
         method: 'PUT',
         headers,
         body: JSON.stringify({
           profile_data: profileData
         }),
+        credentials: 'include' // Important for cookie authentication
       });
       
       if (!response.ok) {
@@ -274,26 +303,23 @@ export default function Settings() {
       const responseData = await response.json();
       console.log('Save response:', responseData);
       
-      // Update localStorage with proper values and ensure they're set
+      // Update localStorage with key user data
       localStorage.setItem('userName', formData.name);
       
-      // Also update company name in localStorage for use in dashboard and other places
       if (formData.company_settings.name) {
-        console.log('Saving company name to localStorage:', formData.company_settings.name);
         localStorage.setItem('companyName', formData.company_settings.name);
       }
       
-      // Set a flag with timestamp to force dashboard to refresh its data
-      localStorage.setItem('settingsUpdated', Date.now().toString());
-      console.log('Settings updated flag set in localStorage');
-      
-      setSuccessMessage('Profile updated successfully! Return to dashboard to see your changes.');
+      setSuccessMessage('Profile updated successfully!');
       setIsEditing(false);
       
       // Clear success message after 3 seconds
       setTimeout(() => {
         setSuccessMessage(null);
       }, 3000);
+      
+      // Refresh page data to show updated information
+      fetchUserData();
     } catch (err) {
       console.error('Error updating user data:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while saving your profile');
