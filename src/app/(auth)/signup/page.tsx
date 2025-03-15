@@ -39,6 +39,8 @@ export default function SignUp() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
   
   // Redirect if already connected and role is selected
   useEffect(() => {
@@ -46,13 +48,161 @@ export default function SignUp() {
       // Store user information
       storeUserInfo(address, selectedRole);
       
-      // Add a short delay to ensure smooth transition
-      setIsLoading(true);
-      setTimeout(() => {
-        router.push(`/${selectedRole}/dashboard`);
-      }, 500);
+      // Register user in MongoDB
+      registerUser(address, selectedRole);
     }
   }, [isConnected, address, selectedRole, router]);
+
+  // Register user in MongoDB
+  const registerUser = async (address: string, role: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      setRedirectTimer(null);
+      console.log(`Registering ${role} with wallet address ${address} in MongoDB`);
+      
+      // First, check if user already exists
+      const checkResponse = await fetch('/api/users/me', {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-wallet-address': address
+        }
+      });
+      
+      if (checkResponse.ok) {
+        // User exists, check if they have a different role
+        const userData = await checkResponse.json();
+        
+        if (userData.user && userData.user.role !== role) {
+          setIsLoading(false);
+          const existingRole = userData.user.role;
+          const errorMsg = `This wallet is already registered as a ${existingRole}. You cannot switch roles.`;
+          setError(errorMsg);
+          
+          // Start a countdown for redirection
+          let countdown = 5;
+          setRedirectTimer(countdown);
+          const timer = window.setInterval(() => {
+            countdown -= 1;
+            if (countdown <= 0) {
+              clearInterval(timer);
+              router.push(`/${existingRole}/dashboard`);
+            } else {
+              setRedirectTimer(countdown);
+            }
+          }, 1000);
+          
+          return;
+        }
+        
+        console.log('User already exists in database, redirecting to onboarding');
+        // Store the user role and address in localStorage
+        localStorage.setItem('userRole', role);
+        localStorage.setItem('walletAddress', address);
+        
+        // Check if onboarding is completed
+        if (userData.user && userData.user.onboarding_completed) {
+          console.log('User has completed onboarding, redirecting to dashboard');
+          router.push(`/${role}/dashboard`);
+        } else {
+          console.log('User has not completed onboarding, redirecting to onboarding flow');
+          router.push(`/${role}/onboarding`);
+        }
+        return;
+      } else if (checkResponse.status === 404) {
+        // User doesn't exist yet, which is expected for new signups
+        console.log('User not found in database, creating new account');
+      } else {
+        // Unexpected error
+        console.error('Error checking user existence:', await checkResponse.text());
+      }
+      
+      // Create profile data based on role
+      const profileData = {
+        name: role === 'writer' ? 'Writer User' : 'Producer User',
+        // Add minimal required fields based on role
+        ...(role === 'writer' ? {
+          genres: [],
+          project_types: [],
+          writing_experience: '',
+          bio: ''
+        } : {
+          company: role === 'producer' ? 'Production Company' : '',
+          industry: 'Entertainment',
+          team_size: '',
+          budget_range: '',
+          bio: ''
+        }),
+        // Common fields for both roles
+        social: {
+          twitter: '',
+          linkedin: '',
+          instagram: ''
+        }
+      };
+      
+      console.log(`Creating new ${role} with profile data:`, profileData);
+      
+      // Create user in database
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-wallet-address': address
+        },
+        body: JSON.stringify({
+          address,
+          role,
+          profile_data: profileData,
+          onboarding_completed: false,
+          onboarding_step: 1
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error response from API:', errorData);
+        throw new Error(errorData.message || errorData.error || 'Failed to register user');
+      }
+      
+      const data = await response.json();
+      console.log('User registration response:', data);
+      
+      // Store basic user information in localStorage
+      localStorage.setItem('userRole', role);
+      localStorage.setItem('walletAddress', address);
+      localStorage.setItem('onboardingCompleted', 'false');
+      
+      if (profileData.name) {
+        localStorage.setItem('userName', profileData.name);
+      }
+      
+      // Redirect to onboarding
+      console.log(`Registration successful, redirecting to ${role} onboarding`);
+      setTimeout(() => {
+        router.push(`/${role}/onboarding`);
+      }, 500);
+    } catch (error) {
+      console.error('Error registering user:', error);
+      setIsLoading(false);
+      
+      // Show the error to the user
+      if (error instanceof Error) {
+        setError(`Registration error: ${error.message}`);
+      } else {
+        setError('An unexpected error occurred during registration');
+      }
+      
+      // Still redirect to onboarding even if registration fails
+      // The onboarding process will handle creating the user if needed
+      console.log('Attempting to redirect to onboarding despite registration error');
+      setTimeout(() => {
+        localStorage.setItem('userRole', role);
+        localStorage.setItem('walletAddress', address);
+        router.push(`/${role}/onboarding`);
+      }, 3000);
+    }
+  };
 
   // Store user information in localStorage
   const storeUserInfo = (address: string, role: string) => {
@@ -109,9 +259,29 @@ export default function SignUp() {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin mb-4 mx-auto"></div>
-          <h2 className="text-xl font-bold text-white mb-2">Setting up your account...</h2>
-          <p className="text-gray-400">You'll be redirected shortly</p>
+          {error ? (
+            <>
+              <div className="bg-red-900/50 border border-red-500 rounded-xl p-6 mb-6 max-w-md mx-auto">
+                <h2 className="text-xl font-bold text-white mb-2">Role Conflict</h2>
+                <p className="text-red-200 mb-4">{error}</p>
+                <p className="text-white">
+                  Redirecting you in <span className="font-bold">{redirectTimer}</span> seconds...
+                </p>
+              </div>
+              <button
+                onClick={() => window.history.back()}
+                className="mt-4 px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+              >
+                Go Back
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin mb-4 mx-auto"></div>
+              <h2 className="text-xl font-bold text-white mb-2">Setting up your account...</h2>
+              <p className="text-gray-400">You'll be redirected shortly</p>
+            </>
+          )}
         </div>
       </div>
     );

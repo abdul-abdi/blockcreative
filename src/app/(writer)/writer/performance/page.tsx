@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ChartBarIcon,
@@ -15,82 +15,81 @@ import {
   XCircleIcon,
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
+import AIAnalysisChart from '@/components/AIAnalysisChart';
 
-// Mock data for performance metrics
-const performanceData = {
-  overview: {
-    aiScore: {
-      value: '8.5',
-      change: '+0.3',
-      trend: 'up',
-    },
-    successRate: {
-      value: '75%',
-      change: '+5%',
-      trend: 'up',
-    },
-    totalSubmissions: {
-      value: '24',
-      change: '+3',
-      trend: 'up',
-    },
-    averageResponse: {
-      value: '4.2 days',
-      change: '-0.5',
-      trend: 'up',
-    },
+// Define interfaces for data types
+interface PerformanceMetric {
+  value: string | number;
+  change: string;
+  trend: 'up' | 'down' | 'neutral';
+}
+
+interface CategoryScore {
+  category: string;
+  score: number;
+  change: string;
+  trend: 'up' | 'down' | 'neutral';
+}
+
+interface AIAnalysis {
+  overallScore: number;
+  categoryScores: CategoryScore[];
+}
+
+interface SubmissionHistory {
+  id: number | string;
+  title: string;
+  studio: string;
+  date: string;
+  score: number;
+  status: string;
+  bounty: string;
+}
+
+interface GenrePerformance {
+  genre: string;
+  score: number;
+  submissions: number;
+}
+
+interface PerformanceData {
+  aiScore: PerformanceMetric;
+  successRate: PerformanceMetric;
+  totalSubmissions: PerformanceMetric;
+  averageResponse: PerformanceMetric;
+  aiAnalysis: AIAnalysis;
+  submissionHistory: SubmissionHistory[];
+  genrePerformance: GenrePerformance[];
+}
+
+// Initialize with empty data
+const emptyPerformanceData: PerformanceData = {
+  aiScore: {
+    value: 0,
+    change: '0',
+    trend: 'neutral',
+  },
+  successRate: {
+    value: '0%',
+    change: '0%',
+    trend: 'neutral',
+  },
+  totalSubmissions: {
+    value: 0,
+    change: '0',
+    trend: 'neutral',
+  },
+  averageResponse: {
+    value: '0 days',
+    change: '0',
+    trend: 'neutral',
   },
   aiAnalysis: {
-    overall: 8.5,
-    categories: [
-      { name: 'Plot Structure', score: 8.7 },
-      { name: 'Character Development', score: 8.3 },
-      { name: 'Dialogue', score: 8.6 },
-      { name: 'Pacing', score: 8.2 },
-      { name: 'Theme Development', score: 8.4 },
-      { name: 'Market Potential', score: 8.8 },
-    ],
+    overallScore: 0,
+    categoryScores: [],
   },
-  recentSubmissions: [
-    {
-      id: 1,
-      title: 'The Last Frontier',
-      studio: 'Universal Pictures',
-      submitted: '2024-03-15',
-      status: 'Selected',
-      aiScore: 8.9,
-      bounty: '$45K',
-    },
-    {
-      id: 2,
-      title: 'Dark Corridors',
-      studio: 'Paramount',
-      submitted: '2024-03-10',
-      status: 'Under Review',
-      aiScore: 8.7,
-      bounty: '$35K',
-    },
-    {
-      id: 3,
-      title: 'Echoes of Tomorrow',
-      studio: 'Netflix',
-      submitted: '2024-03-05',
-      status: 'Not Selected',
-      aiScore: 8.2,
-      bounty: '$30K',
-    },
-  ],
-  genrePerformance: [
-    { genre: 'Sci-Fi', score: 8.8, submissions: 8 },
-    { genre: 'Drama', score: 8.4, submissions: 6 },
-    { genre: 'Thriller', score: 8.6, submissions: 5 },
-    { genre: 'Action', score: 8.2, submissions: 5 },
-  ],
-  performanceHistory: {
-    labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
-    aiScores: [8.0, 8.1, 8.3, 8.2, 8.4, 8.5],
-    successRates: [65, 68, 70, 72, 73, 75],
-  },
+  submissionHistory: [],
+  genrePerformance: [],
 };
 
 const statusColors = {
@@ -106,6 +105,59 @@ const statusIcons = {
 };
 
 export default function Performance() {
+  const [performanceData, setPerformanceData] = useState<PerformanceData>(emptyPerformanceData);
+  const [timeframe, setTimeframe] = useState('6m');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Fetch performance data from API
+  useEffect(() => {
+    const fetchPerformanceData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Prepare headers with wallet address if available
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        const walletAddress = localStorage.getItem('walletAddress');
+        
+        if (walletAddress) {
+          headers['x-wallet-address'] = walletAddress;
+        }
+        
+        // TODO: Replace with actual API endpoint once available
+        // const response = await fetch(`/api/writer/performance?timeframe=${timeframe}`, { headers });
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   setPerformanceData(data);
+        // } else {
+        //   setError('Failed to load performance data');
+        // }
+        
+        // Temporary empty data until the API is implemented
+        setPerformanceData(emptyPerformanceData);
+        
+      } catch (error) {
+        console.error('Error fetching performance data:', error);
+        setError('Failed to load performance data. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchPerformanceData();
+  }, [timeframe]);
+  
+  if (isLoading) {
+    return (
+      <DashboardLayout userType="writer">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout userType="writer">
       <div className="p-6 md:p-8 space-y-8">
@@ -117,7 +169,7 @@ export default function Performance() {
 
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Object.entries(performanceData.overview).map(([key, data]) => (
+          {Object.entries(performanceData).map(([key, data]) => (
             <motion.div
               key={key}
               initial={{ opacity: 0, y: 20 }}
@@ -158,15 +210,15 @@ export default function Performance() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between mb-8">
                   <div className="text-4xl font-bold text-white">
-                    {performanceData.aiAnalysis.overall}
+                    {performanceData.aiAnalysis.overallScore}
                   </div>
                   <div className="text-gray-400">Overall Score</div>
                 </div>
                 <div className="space-y-4">
-                  {performanceData.aiAnalysis.categories.map((category) => (
-                    <div key={category.name}>
+                  {performanceData.aiAnalysis.categoryScores.map((category) => (
+                    <div key={category.category}>
                       <div className="flex justify-between text-sm mb-2">
-                        <span className="text-gray-400">{category.name}</span>
+                        <span className="text-gray-400">{category.category}</span>
                         <span className="text-white">{category.score}</span>
                       </div>
                       <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
@@ -226,7 +278,7 @@ export default function Performance() {
           <div className="p-6">
             <h3 className="text-xl font-bold text-white mb-6">Recent Submissions</h3>
             <div className="space-y-4">
-              {performanceData.recentSubmissions.map((submission) => {
+              {performanceData.submissionHistory.map((submission) => {
                 const StatusIcon = statusIcons[submission.status as keyof typeof statusIcons];
                 return (
                   <div key={submission.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
@@ -234,13 +286,13 @@ export default function Performance() {
                       <h4 className="font-semibold text-white mb-1">{submission.title}</h4>
                       <div className="flex items-center gap-4 text-sm">
                         <span className="text-gray-400">{submission.studio}</span>
-                        <span className="text-gray-400">Submitted: {submission.submitted}</span>
+                        <span className="text-gray-400">Submitted: {submission.date}</span>
                       </div>
                     </div>
                     <div className="text-right space-y-1">
                       <div className="flex items-center gap-2 justify-end">
                         <StarIcon className="w-4 h-4 text-yellow-400" />
-                        <span className="text-white font-semibold">{submission.aiScore}</span>
+                        <span className="text-white font-semibold">{submission.score}</span>
                       </div>
                       <div className="text-lg font-bold text-white">{submission.bounty}</div>
                       <div className="flex items-center gap-1 text-sm justify-end">
@@ -266,8 +318,6 @@ export default function Performance() {
           <div className="p-6">
             <h3 className="text-xl font-bold text-white mb-6">Performance History</h3>
             <div className="h-64">
-              {/* Here you would render a line chart using the data from performanceData.performanceHistory */}
-              {/* For now, showing a placeholder gradient bar */}
               <div className="w-full h-full bg-gradient-to-r from-[rgb(var(--accent-primary))]/10 to-[rgb(var(--accent-secondary))]/10 rounded-lg" />
             </div>
           </div>

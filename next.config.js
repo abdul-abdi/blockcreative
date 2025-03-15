@@ -9,14 +9,16 @@ const nextConfig = {
     ],
   },
   reactStrictMode: true,
+  // Temporarily keep console logs for debugging authentication issues on Vercel
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+    // Keep console logs in production for troubleshooting auth issues
+    removeConsole: false, // Will change back to process.env.NODE_ENV === 'production' after fixing auth
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    optimizeCss: true,
+    optimizeCss: false,
     scrollRestoration: true,
     optimizePackageImports: ['@heroicons/react', 'framer-motion'],
   },
@@ -27,6 +29,36 @@ const nextConfig = {
       use: ['@svgr/webpack'],
     });
     return config;
+  },
+  // Important for auth cookies to work properly in Vercel
+  headers: async () => {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'origin-when-cross-origin',
+          },
+        ],
+      },
+    ];
   },
 };
 

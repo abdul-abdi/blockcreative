@@ -1,32 +1,16 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { headers } from 'next/headers' 
-import ContextProvider from '@/context'
+import { headers } from 'next/headers';
+import ContextProvider from '@/context';
+import connectToDatabase from '@/lib/mongodb';
+import ClientInitializer from '@/components/ClientInitializer';
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const viewport: Viewport = {
-  themeColor: "#40E0D0",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false
-};
-
 export const metadata: Metadata = {
-  title: "BlockCreative | AI-Powered Blockchain Scriptwriting Platform",
-  description: "Revolutionize scriptwriting with blockchain & AI. Empowering producers and scriptwriters to create award-winning content securely and transparently.",
-  keywords: ["blockchain", "AI", "scriptwriting", "creative", "platform", "decentralized"],
-  manifest: "/manifest.json",
-  icons: {
-    icon: [
-      { url: "/icon.svg", type: "image/svg+xml" }
-    ],
-    apple: [
-      { url: "/icon.svg", type: "image/svg+xml" }
-    ]
-  }
+  title: "BlockCreative",
+  description: "Connect scriptwriters with producers securely using blockchain technology",
 };
 
 export default async function RootLayout({
@@ -34,19 +18,36 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Get headers for cookie handling
+  const headersObj = await headers();
+  const cookies = headersObj.get('cookie');
+  
+  // Connect to MongoDB on server-side
+  let dbConnected = false;
+  if (typeof window === 'undefined') {
+    try {
+      await connectToDatabase();
+      console.log('Database connected successfully');
+      dbConnected = true;
+    } catch (error) {
+      console.error('Database connection error:', error);
+      console.log('Continuing without database connection - will use mock data for development');
+    }
+  }
 
-const headersObj = await headers();
-const cookies = headersObj.get('cookie');
-
- 
   return (
     <html lang="en" className="scroll-smooth bg-black">
       <head>
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" href="/favicon.ico" />
       </head>
       <body className={`${inter.className} min-h-screen bg-black antialiased`}>
-       
-        <ContextProvider cookies={cookies}>{children}</ContextProvider>
+        <ContextProvider cookies={cookies} dbConnected={dbConnected}>
+          {/* Client-side component for blockchain initialization */}
+          <ClientInitializer />
+          {children}
+        </ContextProvider>
       </body>
     </html>
   );

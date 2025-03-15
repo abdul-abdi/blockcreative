@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -16,83 +16,131 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
 
-// Mock data for active projects
-const projects = [
-  {
-    id: 1,
-    title: 'Sci-Fi Feature Film',
-    description: 'Looking for an original sci-fi concept that explores the intersection of artificial intelligence and human consciousness.',
-    budget: '$100K-200K',
-    deadline: '2024-04-15',
-    totalSubmissions: 24,
-    status: 'Active',
-    topSubmissions: [
-      { id: 1, title: 'Beyond the Stars', writer: 'Sarah Johnson', score: 94 },
-      { id: 2, title: 'Digital Dreams', writer: 'Michael Chen', score: 92 },
-      { id: 3, title: 'Neural Network', writer: 'Alex Kim', score: 89 },
-    ],
-    requirements: [
-      'Original concept',
-      'High-concept premise',
-      'Commercial appeal',
-      'Strong character arcs',
-    ],
-    genre: 'Science Fiction',
-    type: 'Feature Film',
-    progress: 75,
-  },
-  {
-    id: 2,
-    title: 'Drama Series Pilot',
-    description: 'Seeking a compelling drama series pilot that explores contemporary social issues through a unique lens.',
-    budget: '$50K-100K',
-    deadline: '2024-04-20',
-    totalSubmissions: 18,
-    status: 'Review',
-    topSubmissions: [
-      { id: 4, title: 'City Lights', writer: 'Emma Thompson', score: 91 },
-      { id: 5, title: 'Breaking Point', writer: 'David Rodriguez', score: 88 },
-      { id: 6, title: 'The Divide', writer: 'Lisa Chen', score: 86 },
-    ],
-    requirements: [
-      'Character-driven',
-      'Social relevance',
-      'Series potential',
-      'Diverse perspectives',
-    ],
-    genre: 'Drama',
-    type: 'TV Pilot',
-    progress: 60,
-  },
-  {
-    id: 3,
-    title: 'Thriller Feature',
-    description: 'Looking for a unique psychological thriller that pushes genre boundaries and delivers unexpected twists.',
-    budget: '$75K-150K',
-    deadline: '2024-04-25',
-    totalSubmissions: 15,
-    status: 'Shortlisting',
-    topSubmissions: [
-      { id: 7, title: 'Dark Corridors', writer: 'James Wilson', score: 90 },
-      { id: 8, title: 'The Echo Chamber', writer: 'Anna Lee', score: 87 },
-      { id: 9, title: 'Mirrors', writer: 'Robert Chang', score: 85 },
-    ],
-    requirements: [
-      'Unique perspective',
-      'Plot twists',
-      'Genre innovation',
-      'Psychological elements',
-    ],
-    genre: 'Thriller',
-    type: 'Feature Film',
-    progress: 40,
-  },
-];
+// Define typings for our data
+interface Submission {
+  id: number | string;
+  title: string;
+  writer: string;
+  score: number;
+}
+
+interface Project {
+  id: number | string;
+  title: string;
+  description: string;
+  budget: string;
+  deadline: string;
+  totalSubmissions: number;
+  status: string;
+  topSubmissions: Submission[];
+  requirements: string[];
+  genre: string;
+  type: string;
+  progress: number;
+}
 
 export default function Projects() {
-  const [selectedProject, setSelectedProject] = useState(projects[0]);
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterGenre, setFilterGenre] = useState('all');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState({
+    status: 'all',
+    searchQuery: '',
+  });
+
+  // Fetch projects data from API
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Prepare headers with wallet address if available
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        const walletAddress = localStorage.getItem('walletAddress');
+        
+        if (walletAddress) {
+          headers['x-wallet-address'] = walletAddress;
+        }
+        
+        // TODO: Replace with actual API endpoint once available
+        // For now, we'll just set an empty array
+        // const response = await fetch('/api/producer/projects', { headers });
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   setProjects(data.projects);
+        //   setFilteredProjects(data.projects);
+        //   if (data.projects.length > 0) {
+        //     setSelectedProject(data.projects[0]);
+        //   }
+        // } else {
+        //   setError('Failed to load projects');
+        // }
+        
+        // Temporary empty data until the API is implemented
+        setProjects([]);
+        setFilteredProjects([]);
+        setSelectedProject(null);
+        
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+        setError('Failed to load projects. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchProjects();
+  }, []);
+  
+  // Filter projects when filters change
+  useEffect(() => {
+    if (projects.length === 0) {
+      setFilteredProjects([]);
+      return;
+    }
+    
+    let result = [...projects];
+    
+    // Apply status filter
+    if (filter.status !== 'all') {
+      result = result.filter(project => 
+        project.status.toLowerCase() === filter.status.toLowerCase()
+      );
+    }
+    
+    // Apply search filter
+    if (filter.searchQuery) {
+      const query = filter.searchQuery.toLowerCase();
+      result = result.filter(project => 
+        project.title.toLowerCase().includes(query) ||
+        project.description.toLowerCase().includes(query)
+      );
+    }
+    
+    setFilteredProjects(result);
+    
+    // Update selected project if needed
+    if (result.length > 0 && (!selectedProject || !result.find(p => p.id === selectedProject.id))) {
+      setSelectedProject(result[0]);
+    } else if (result.length === 0) {
+      setSelectedProject(null);
+    }
+  }, [filter, projects, selectedProject]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFilter(prev => ({ ...prev, searchQuery: e.target.value }));
+  };
+  
+  const handleStatusFilterChange = (status: string) => {
+    setFilter(prev => ({ ...prev, status }));
+  };
+  
+  const handleProjectSelect = (project: Project) => {
+    setSelectedProject(project);
+  };
 
   return (
     <DashboardLayout userType="producer">
@@ -115,8 +163,8 @@ export default function Projects() {
         {/* Filters */}
         <div className="flex flex-wrap gap-4">
           <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
+            value={filter.status}
+            onChange={(e) => handleStatusFilterChange(e.target.value)}
             className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white"
           >
             <option value="all">All Status</option>
@@ -124,31 +172,28 @@ export default function Projects() {
             <option value="review">In Review</option>
             <option value="shortlisting">Shortlisting</option>
           </select>
-          <select
-            value={filterGenre}
-            onChange={(e) => setFilterGenre(e.target.value)}
+          <input
+            type="text"
+            value={filter.searchQuery}
+            onChange={handleSearchChange}
+            placeholder="Search projects"
             className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white"
-          >
-            <option value="all">All Genres</option>
-            <option value="scifi">Science Fiction</option>
-            <option value="drama">Drama</option>
-            <option value="thriller">Thriller</option>
-          </select>
+          />
         </div>
 
         {/* Projects Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Projects List */}
           <div className="space-y-4">
-            {projects.map((project) => (
+            {filteredProjects.map((project) => (
               <motion.div
                 key={project.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`card cursor-pointer ${
-                  selectedProject.id === project.id ? 'border-[rgb(var(--accent-primary))]' : ''
+                  selectedProject?.id === project.id ? 'border-[rgb(var(--accent-primary))]' : ''
                 }`}
-                onClick={() => setSelectedProject(project)}
+                onClick={() => handleProjectSelect(project)}
               >
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">

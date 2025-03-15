@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ChartBarIcon,
@@ -15,160 +15,148 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
 
-// Mock data for analytics
-const analyticsData = {
+// Define interfaces for data types
+interface MetricData {
+  value: number | string;
+  change: string;
+  trend: 'up' | 'down' | 'neutral';
+}
+
+interface OverviewData {
+  activeProjects: MetricData;
+  totalSubmissions: MetricData;
+  averageScore: MetricData;
+  totalInvestment: MetricData;
+}
+
+interface ProjectPerformance {
+  id: number | string;
+  title: string;
+  submissions: number;
+  averageScore: number;
+  topScore: number;
+  status: string;
+  trend: 'up' | 'down' | 'neutral';
+  topSubmissions: TopSubmission[];
+}
+
+interface TopSubmission {
+  id: number | string;
+  title: string;
+  writer: string;
+  submittedDate: string;
+  score: number;
+  status: string;
+  genre: string;
+  synopsis: string;
+  strengths: string[];
+  feedback: string;
+}
+
+interface GenrePopularity {
+  genre: string;
+  count: number;
+  averageScore: number;
+}
+
+interface WriterEngagement {
+  month: string;
+  count: number;
+}
+
+interface TopWriter {
+  id: number | string;
+  name: string;
+  submissions: number;
+  averageScore: number;
+  acceptanceRate: string;
+  earnings: string;
+}
+
+interface AnalyticsData {
+  overview: OverviewData;
+  projectPerformance: ProjectPerformance[];
+  genrePopularity: GenrePopularity[];
+  writerEngagement: WriterEngagement[];
+  topWriters: TopWriter[];
+}
+
+// Initialize with empty data
+const emptyAnalyticsData: AnalyticsData = {
   overview: {
-    activeProjects: {
-      value: 12,
-      change: '+2',
-      trend: 'up',
-    },
-    totalSubmissions: {
-      value: 156,
-      change: '+23',
-      trend: 'up',
-    },
-    averageScore: {
-      value: '85.5',
-      change: '+2.3',
-      trend: 'up',
-    },
-    totalInvestment: {
-      value: '$450K',
-      change: '+$50K',
-      trend: 'up',
-    },
+    activeProjects: { value: 0, change: '0', trend: 'neutral' },
+    totalSubmissions: { value: 0, change: '0', trend: 'neutral' },
+    averageScore: { value: '0', change: '0', trend: 'neutral' },
+    totalInvestment: { value: '$0', change: '$0', trend: 'neutral' },
   },
-  projectPerformance: [
-    {
-      id: 1,
-      title: 'Sci-Fi Feature Film',
-      submissions: 45,
-      averageScore: 88,
-      topScore: 94,
-      status: 'Active',
-      trend: 'up',
-      topSubmissions: [
-        {
-          id: 1,
-          title: 'The Last Frontier',
-          writer: 'Sarah Johnson',
-          submittedDate: '2024-03-15',
-          score: 94,
-          status: 'Under Review',
-          genre: 'Sci-Fi',
-          synopsis: 'A groundbreaking exploration of human consciousness in deep space.',
-          strengths: ['Original concept', 'Strong character arcs', 'Visual potential'],
-          feedback: 'Exceptional world-building with compelling character dynamics.',
-        },
-        {
-          id: 2,
-          title: 'Beyond the Stars',
-          writer: 'Michael Chen',
-          submittedDate: '2024-03-14',
-          score: 92,
-          status: 'Under Review',
-          genre: 'Sci-Fi',
-          synopsis: 'A journey through parallel universes reveals humanity\'s true potential.',
-          strengths: ['Unique premise', 'Scientific accuracy', 'Emotional depth'],
-          feedback: 'Innovative take on multiverse theory with strong emotional core.',
-        },
-        {
-          id: 3,
-          title: 'Quantum Dreams',
-          writer: 'Emily Parker',
-          submittedDate: '2024-03-13',
-          score: 89,
-          status: 'Under Review',
-          genre: 'Sci-Fi',
-          synopsis: 'When dreams become a gateway to quantum realms.',
-          strengths: ['Creative concept', 'Engaging plot', 'Commercial appeal'],
-          feedback: 'Fresh perspective on quantum mechanics with mainstream appeal.',
-        }
-      ]
-    },
-    {
-      id: 2,
-      title: 'Drama Series Pilot',
-      submissions: 32,
-      averageScore: 85,
-      topScore: 92,
-      status: 'Active',
-      trend: 'up',
-      topSubmissions: [
-        {
-          id: 1,
-          title: 'Breaking Point',
-          writer: 'Anna Lee',
-          submittedDate: '2024-03-15',
-          score: 92,
-          status: 'Under Review',
-          genre: 'Drama',
-          synopsis: 'A family\'s struggle with addiction and redemption.',
-          strengths: ['Powerful dialogue', 'Complex characters', 'Timely themes'],
-          feedback: 'Emotionally resonant with excellent character development.',
-        },
-        {
-          id: 2,
-          title: 'City Lights',
-          writer: 'David Wilson',
-          submittedDate: '2024-03-14',
-          score: 88,
-          status: 'Under Review',
-          genre: 'Drama',
-          synopsis: 'Intersecting lives in a city that never sleeps.',
-          strengths: ['Ensemble cast', 'Rich storytelling', 'Social commentary'],
-          feedback: 'Well-crafted narrative with strong potential for character arcs.',
-        }
-      ]
-    },
-    {
-      id: 3,
-      title: 'Action Thriller',
-      submissions: 28,
-      averageScore: 82,
-      topScore: 89,
-      status: 'Completed',
-      trend: 'down',
-      topSubmissions: [
-        {
-          id: 1,
-          title: 'Dark Corridors',
-          writer: 'James Martinez',
-          submittedDate: '2024-03-10',
-          score: 89,
-          status: 'Selected',
-          genre: 'Thriller',
-          synopsis: 'A detective uncovers a conspiracy that goes to the highest levels.',
-          strengths: ['Fast-paced action', 'Plot twists', 'Strong antagonist'],
-          feedback: 'Gripping narrative with excellent pacing and suspense.',
-        }
-      ]
-    }
-  ],
-  genreDistribution: {
-    labels: ['Action', 'Drama', 'Sci-Fi', 'Comedy', 'Thriller', 'Horror'],
-    data: [30, 25, 20, 15, 7, 3],
-  },
-  submissionTrends: {
-    daily: {
-      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      data: [12, 15, 18, 14, 16, 10, 8],
-    },
-    weekly: {
-      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-      data: [45, 52, 48, 56],
-    },
-    monthly: {
-      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-      data: [180, 195, 210, 205, 220, 235],
-    },
-  },
+  projectPerformance: [{
+    id: 0,
+    title: '',
+    submissions: 0,
+    averageScore: 0,
+    topScore: 0,
+    status: '',
+    trend: 'neutral',
+    topSubmissions: []
+  }],
+  genrePopularity: [],
+  writerEngagement: [],
+  topWriters: [],
 };
 
 export default function Analytics() {
-  const [timeframe, setTimeframe] = useState('weekly');
-  const [selectedProject, setSelectedProject] = useState(analyticsData.projectPerformance[0]);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>(emptyAnalyticsData);
+  const [timeframe, setTimeframe] = useState('6m');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Fetch analytics data from API
+  useEffect(() => {
+    const fetchAnalyticsData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Prepare headers with wallet address if available
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        const walletAddress = localStorage.getItem('walletAddress');
+        
+        if (walletAddress) {
+          headers['x-wallet-address'] = walletAddress;
+        }
+        
+        // TODO: Replace with actual API endpoint once available
+        // const response = await fetch(`/api/producer/analytics?timeframe=${timeframe}`, { headers });
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   setAnalyticsData(data);
+        // } else {
+        //   setError('Failed to load analytics data');
+        // }
+        
+        // Temporary empty data until the API is implemented
+        setAnalyticsData(emptyAnalyticsData);
+        
+      } catch (error) {
+        console.error('Error fetching analytics data:', error);
+        setError('Failed to load analytics data. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchAnalyticsData();
+  }, [timeframe]);
+  
+  if (isLoading) {
+    return (
+      <DashboardLayout userType="producer">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userType="producer">
@@ -223,9 +211,8 @@ export default function Analytics() {
                 {analyticsData.projectPerformance.map((project) => (
                   <button
                     key={project.id}
-                    onClick={() => setSelectedProject(project)}
                     className={`w-full text-left p-4 rounded-lg transition-all ${
-                      selectedProject.id === project.id
+                      project.id === analyticsData.projectPerformance[0].id
                         ? 'bg-[rgb(var(--accent-primary))]/10 border border-[rgb(var(--accent-primary))]/30'
                         : 'bg-white/5 hover:bg-white/10'
                     }`}
@@ -269,11 +256,11 @@ export default function Analytics() {
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold text-white">Top Submissions</h3>
                 <div className="text-sm text-gray-400">
-                  {selectedProject.submissions} total submissions
+                  {analyticsData.projectPerformance[0].submissions} total submissions
                 </div>
               </div>
               <div className="space-y-6">
-                {selectedProject.topSubmissions.map((submission) => (
+                {analyticsData.projectPerformance[0].topSubmissions.map((submission) => (
                   <div key={submission.id} className="p-4 bg-white/5 rounded-lg space-y-4">
                     <div className="flex justify-between items-start">
                       <div>

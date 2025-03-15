@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   CurrencyDollarIcon,
@@ -13,77 +13,76 @@ import {
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
 
-// Mock data for earnings
-const earningsData = {
+// Define interfaces for data types
+interface MetricData {
+  value: string;
+  change: string;
+  trend: 'up' | 'down' | 'neutral';
+}
+
+interface EarningsOverview {
+  totalEarnings: MetricData;
+  pendingPayments: MetricData;
+  averageBounty: MetricData;
+  successRate: MetricData;
+}
+
+interface Transaction {
+  id: number | string;
+  title: string;
+  studio: string;
+  amount: string;
+  date: string;
+  status: 'Completed' | 'Pending' | 'Processing';
+  type: string;
+}
+
+interface EarningsByMonth {
+  month: string;
+  amount: number;
+}
+
+interface PaymentMethod {
+  id: number | string;
+  type: string;
+  name: string;
+  isDefault: boolean;
+}
+
+interface EarningsData {
+  overview: EarningsOverview;
+  recentTransactions: Transaction[];
+  earningsByMonth: EarningsByMonth[];
+  paymentMethods: PaymentMethod[];
+}
+
+// Initialize with empty data
+const emptyEarningsData: EarningsData = {
   overview: {
     totalEarnings: {
-      value: '$45,000',
-      change: '+$5,000',
-      trend: 'up',
+      value: '$0',
+      change: '$0',
+      trend: 'neutral',
     },
     pendingPayments: {
-      value: '$15,000',
-      change: '+$2,000',
-      trend: 'up',
+      value: '$0',
+      change: '$0',
+      trend: 'neutral',
     },
     averageBounty: {
-      value: '$25,000',
-      change: '+$1,500',
-      trend: 'up',
+      value: '$0',
+      change: '$0',
+      trend: 'neutral',
     },
     successRate: {
-      value: '75%',
-      change: '+5%',
-      trend: 'up',
+      value: '0%',
+      change: '0%',
+      trend: 'neutral',
     },
   },
-  recentTransactions: [
-    {
-      id: 1,
-      title: 'The Last Frontier',
-      studio: 'Paramount Pictures',
-      amount: '$45,000',
-      date: '2024-03-15',
-      status: 'Completed',
-      type: 'Bounty Payment',
-    },
-    {
-      id: 2,
-      title: 'Dark Corridors',
-      studio: 'A24',
-      amount: '$35,000',
-      date: '2024-03-10',
-      status: 'Pending',
-      type: 'Bounty Payment',
-    },
-    {
-      id: 3,
-      title: 'Echoes of Tomorrow',
-      studio: 'Netflix',
-      amount: '$30,000',
-      date: '2024-03-05',
-      status: 'Processing',
-      type: 'Bounty Payment',
-    },
-  ],
-  monthlyEarnings: {
-    labels: ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
-    earnings: [25000, 30000, 28000, 35000, 40000, 45000],
-  },
-  paymentMethods: [
-    {
-      id: 1,
-      type: 'Bank Account',
-      name: '****1234',
-      isDefault: true,
-    },
-    {
-      id: 2,
-      type: 'Crypto Wallet',
-      name: '0x1234...5678',
-      isDefault: false,
-    },
-  ],
+  recentTransactions: [],
+  earningsByMonth: [],
+  paymentMethods: []
 };
 
 const statusColors = {
@@ -94,7 +93,58 @@ const statusColors = {
 };
 
 export default function Earnings() {
-  const [selectedTimeframe, setSelectedTimeframe] = useState('6m');
+  const [earningsData, setEarningsData] = useState<EarningsData>(emptyEarningsData);
+  const [timeframe, setTimeframe] = useState('6m');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Fetch earnings data from API
+  useEffect(() => {
+    const fetchEarningsData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Prepare headers with wallet address if available
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        const walletAddress = localStorage.getItem('walletAddress');
+        
+        if (walletAddress) {
+          headers['x-wallet-address'] = walletAddress;
+        }
+        
+        // TODO: Replace with actual API endpoint once available
+        // const response = await fetch(`/api/writer/earnings?timeframe=${timeframe}`, { headers });
+        // if (response.ok) {
+        //   const data = await response.json();
+        //   setEarningsData(data);
+        // } else {
+        //   setError('Failed to load earnings data');
+        // }
+        
+        // Temporary empty data until the API is implemented
+        setEarningsData(emptyEarningsData);
+        
+      } catch (error) {
+        console.error('Error fetching earnings data:', error);
+        setError('Failed to load earnings data. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchEarningsData();
+  }, [timeframe]);
+  
+  if (isLoading) {
+    return (
+      <DashboardLayout userType="writer">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout userType="writer">
@@ -217,9 +267,9 @@ export default function Earnings() {
                 {['1m', '3m', '6m', '1y'].map((period) => (
                   <button
                     key={period}
-                    onClick={() => setSelectedTimeframe(period)}
+                    onClick={() => setTimeframe(period)}
                     className={`px-3 py-1 rounded-full text-sm transition-all ${
-                      selectedTimeframe === period
+                      timeframe === period
                         ? 'bg-[rgb(var(--accent-primary))] text-white'
                         : 'bg-white/5 text-gray-400 hover:bg-white/10'
                     }`}

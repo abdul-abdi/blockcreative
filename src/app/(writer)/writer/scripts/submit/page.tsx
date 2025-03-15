@@ -52,7 +52,7 @@ const steps = [
 const SubmitScriptContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const projectId = searchParams.get('project');
+  const projectId = searchParams?.get('project');
   const [currentStep, setCurrentStep] = useState(0);
   const [scriptData, setScriptData] = useState<ScriptData>(initialScriptData);
   const [isAnalyzing, setIsAnalyzing] = useState(false);

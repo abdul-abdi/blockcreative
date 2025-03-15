@@ -65,6 +65,7 @@ export default function SubmitScript() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [error, setError] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,37 +82,106 @@ export default function SubmitScript() {
   const analyzeScript = useCallback(async () => {
     setIsAnalyzing(true);
     
-    // Simulate AI analysis
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Generate random scores for demo
-    const randomScore = () => Math.floor(Math.random() * 30) + 70; // 70-100 range
-    
-    setScriptData(prev => ({
-      ...prev,
-      aiAnalysis: {
-        plotStrength: randomScore(),
-        characterDevelopment: randomScore(),
-        marketPotential: randomScore(),
-        uniqueness: randomScore(),
-        pacing: randomScore(),
-        dialogue: randomScore(),
-        structure: randomScore(),
-        theme: randomScore(),
-      },
-    }));
-    
-    setIsAnalyzing(false);
-  }, []);
+    try {
+      // Prepare headers with wallet address if available
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      const walletAddress = localStorage.getItem('walletAddress');
+      
+      if (walletAddress) {
+        headers['x-wallet-address'] = walletAddress;
+      }
+      
+      // TODO: Replace with actual API endpoint once available
+      // For now, we'll just use empty scores
+      // const formData = new FormData();
+      // formData.append('title', scriptData.title);
+      // formData.append('logline', scriptData.logline);
+      // formData.append('synopsis', scriptData.synopsis);
+      // formData.append('genre', scriptData.genre);
+      // formData.append('targetAudience', scriptData.targetAudience);
+      // if (scriptData.file) {
+      //   formData.append('file', scriptData.file);
+      // }
+      // 
+      // const response = await fetch('/api/writer/analyze-script', {
+      //   method: 'POST',
+      //   body: formData,
+      //   headers,
+      // });
+      // 
+      // if (response.ok) {
+      //   const data = await response.json();
+      //   setScriptData(prev => ({
+      //     ...prev,
+      //     aiAnalysis: data.analysis,
+      //   }));
+      // } else {
+      //   throw new Error('Failed to analyze script');
+      // }
+      
+      // Temporary empty analysis scores until API is implemented
+      setScriptData(prev => ({
+        ...prev,
+        aiAnalysis: {
+          plotStrength: 0,
+          characterDevelopment: 0,
+          marketPotential: 0,
+          uniqueness: 0,
+          pacing: 0,
+          dialogue: 0,
+          structure: 0,
+          theme: 0,
+        },
+      }));
+    } catch (error) {
+      console.error('Error analyzing script:', error);
+      setError('Failed to analyze script. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [scriptData.title, scriptData.logline, scriptData.synopsis, scriptData.genre, scriptData.targetAudience, scriptData.file]);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Redirect to submissions page
-    router.push('/writer/submissions');
+    try {
+      // Prepare headers with wallet address if available
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      const walletAddress = localStorage.getItem('walletAddress');
+      
+      if (walletAddress) {
+        headers['x-wallet-address'] = walletAddress;
+      }
+      
+      // TODO: Replace with actual API endpoint once available
+      // const formData = new FormData();
+      // formData.append('title', scriptData.title);
+      // formData.append('logline', scriptData.logline);
+      // formData.append('synopsis', scriptData.synopsis);
+      // formData.append('genre', scriptData.genre);
+      // formData.append('targetAudience', scriptData.targetAudience);
+      // if (scriptData.file) {
+      //   formData.append('file', scriptData.file);
+      // }
+      // formData.append('aiAnalysis', JSON.stringify(scriptData.aiAnalysis));
+      // 
+      // const response = await fetch('/api/writer/submit-script', {
+      //   method: 'POST',
+      //   body: formData,
+      //   headers,
+      // });
+      // 
+      // if (!response.ok) {
+      //   throw new Error('Failed to submit script');
+      // }
+      
+      // For now, just redirect to submissions page
+      router.push('/writer/submissions');
+    } catch (error) {
+      console.error('Error submitting script:', error);
+      setError('Failed to submit script. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
   const renderStepContent = () => {
