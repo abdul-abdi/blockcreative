@@ -3,6 +3,7 @@ import { getToken } from 'next-auth/jwt';
 import connectToDatabase from './mongodb';
 import mockDbService from './mock-db';
 import { rateLimit, configureRateLimits } from './rateLimit';
+import { getSessionCookieName } from './session-helper';
 
 // Define API handler type
 type ApiHandler = (
@@ -57,8 +58,36 @@ export function withApiMiddleware(
       // Handle authentication if required
       let token = null;
       if (options.requireAuth) {
-        token = await getToken({ req: req as any });
+        // Get the session cookie name based on environment
+        const cookieName = getSessionCookieName();
+        
+        // Log more details in development or when debugging is enabled
+        if (process.env.NODE_ENV !== 'production' || process.env.DEBUG_AUTH === 'true') {
+          console.log('API Auth Debug:');
+          console.log('- Environment:', process.env.NODE_ENV);
+          console.log('- Cookie Name:', cookieName);
+          console.log('- Auth Required:', options.requireAuth);
+          console.log('- Cookies Present:', req.cookies.size > 0);
+          if (req.cookies.size > 0) {
+            // Use getAll() to safely access cookies in Next.js RequestCookies
+            const cookieNames = Array.from(req.cookies.getAll(), cookie => cookie.name);
+            console.log('- Cookies:', cookieNames);
+          }
+        }
+        
+        // More robust token retrieval with explicit options
+        token = await getToken({ 
+          req: req as any,
+          secret: process.env.NEXTAUTH_SECRET,
+          secureCookie: process.env.NODE_ENV === 'production'
+        });
+        
         if (!token) {
+          // For debugging - log additional information
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('No auth token found for request to:', req.url);
+          }
+          
           return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 

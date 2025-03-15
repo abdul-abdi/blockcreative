@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi';
 import { appKitModal } from '@/context';
 import { useSession } from 'next-auth/react';
 import { useUser } from '@/lib/hooks/useUser';
+import { logAuthDebugInfo } from '@/lib/session-helper';
 
 interface AuthWrapperProps {
   children: ReactNode;
@@ -27,6 +28,18 @@ export default function AuthWrapper({
   const pathname = usePathname();
   const [isChecking, setIsChecking] = useState(true);
   const { user, error, isLoading: isUserLoading, mutate: refreshUser } = useUser();
+  
+  // Log additional debugging information to help troubleshoot Vercel deployment issues
+  useEffect(() => {
+    // Only log in development or when explicitly enabled
+    if (process.env.NODE_ENV !== 'production' || process.env.DEBUG_AUTH === 'true') {
+      logAuthDebugInfo(session, status);
+      console.log('Path:', pathname);
+      console.log('Wallet connected:', isConnected);
+      console.log('User from hook:', !!user);
+      console.log('Error from hook:', error);
+    }
+  }, [session, status, pathname, isConnected, user, error]);
 
   useEffect(() => {
     const checkAuthAndOnboarding = async () => {
@@ -49,12 +62,17 @@ export default function AuthWrapper({
         const storedAddress = localStorage.getItem('walletAddress') || userSession?.address || address;
         const isAuthenticated = isConnected || status === 'authenticated' || (storedRole && storedAddress);
         
+        // More verbose logging to help diagnose issues
         console.log('Auth status check:', { 
+          env: process.env.NODE_ENV || 'unknown',
           isAuthenticated, 
           isConnected,
+          sessionStatus: status,
           address: address || 'No connected address',
           storedAddress: storedAddress || 'No stored address',
-          sessionStatus: status,
+          userFromLocalStorage: !!localStorage.getItem('userRole'),
+          userFromSession: !!session?.user,
+          userFromSWR: !!user,
           pathname,
           isPublicRoute,
           isOnboardingRoute
@@ -109,10 +127,17 @@ export default function AuthWrapper({
           } else if (error) {
             console.error('Failed to fetch user data:', error);
             
-            // If user not found but we have a wallet address, direct to signup to choose role
-            if (address || storedAddress) {
-              console.log('Wallet address not found in database, redirecting to signup');
-              router.push('/signup');
+            // Instead of immediately redirecting, add a small delay and a check
+            // This can help prevent redirect loops on Vercel
+            if (!isChecking && (address || storedAddress)) {
+              console.log('Wallet address not found in database, redirecting to signup with delay');
+              
+              // Wait 500ms before redirecting to avoid rapid redirect loops
+              setTimeout(() => {
+                if (pathname !== '/signup') {
+                  router.push('/signup');
+                }
+              }, 500);
               return;
             }
             
@@ -120,7 +145,12 @@ export default function AuthWrapper({
             const onboardingCompleted = localStorage.getItem('onboardingCompleted') === 'true';
             if (!onboardingCompleted && storedRole) {
               console.log(`Redirecting to ${storedRole} onboarding (fallback)`);
-              router.push(`/${storedRole}/onboarding`);
+              const targetPath = `/${storedRole}/onboarding`;
+              
+              // Prevent redirect loops by checking the current path
+              if (pathname !== targetPath) {
+                router.push(targetPath);
+              }
               return;
             }
           }
@@ -129,7 +159,11 @@ export default function AuthWrapper({
         // For routes that require authentication
         if (requireAuth && !isAuthenticated) {
           console.log('Authentication required but not authenticated, redirecting to signin');
-          router.push('/signin');
+          
+          // Prevent redirect loops
+          if (pathname !== '/signin') {
+            router.push('/signin');
+          }
           return;
         }
         
@@ -141,7 +175,12 @@ export default function AuthWrapper({
           // If the user doesn't have the required role, redirect to their dashboard
           if (userRole && userRole !== requiredRole) {
             console.log(`User role ${userRole} doesn't match required role ${requiredRole}, redirecting`);
-            router.push(`/${userRole}/dashboard`);
+            const targetPath = `/${userRole}/dashboard`;
+            
+            // Prevent redirect loops
+            if (pathname !== targetPath) {
+              router.push(targetPath);
+            }
             return;
           }
         }
@@ -150,7 +189,12 @@ export default function AuthWrapper({
         if (isAuthenticated && pathname && (pathname === '/signin' || pathname === '/signup')) {
           const userRole = storedRole || session?.user?.role || (isConnected && address ? determineUserRole(address) : 'writer');
           console.log(`Already authenticated on auth page, redirecting to ${userRole} dashboard`);
-          router.push(`/${userRole}/dashboard`);
+          const targetPath = `/${userRole}/dashboard`;
+          
+          // Prevent redirect loops
+          if (pathname !== targetPath) {
+            router.push(targetPath);
+          }
         }
       } catch (error) {
         console.error('Auth check error:', error);
@@ -160,7 +204,7 @@ export default function AuthWrapper({
     };
     
     checkAuthAndOnboarding();
-  }, [isConnected, address, pathname, requireAuth, requiredRole, router, session, status, user, error, refreshUser]);
+  }, [isConnected, address, pathname, requireAuth, requiredRole, router, session, status, user, error, refreshUser, isChecking]);
   
   // Function to determine user role based on address
   const determineUserRole = (address: string): 'writer' | 'producer' => {

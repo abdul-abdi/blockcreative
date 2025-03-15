@@ -3,12 +3,17 @@ import connectToDatabase from '@/lib/mongodb';
 import { User } from '@/models';
 import { getToken } from 'next-auth/jwt';
 import { withApiMiddleware } from '@/lib/api-middleware';
+import { getSessionCookieName } from '@/lib/session-helper';
 
 // GET /api/users/me - Get current user info
 async function getUserHandler(request: NextRequest) {
   try {
-    // Check authentication via NextAuth
-    const token = await getToken({ req: request as any });
+    // Check authentication via NextAuth with more robust options
+    const token = await getToken({ 
+      req: request as any, 
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === 'production'
+    });
     
     // Connect to the database
     await connectToDatabase();
@@ -16,6 +21,20 @@ async function getUserHandler(request: NextRequest) {
     let user = null;
     let usedMethod = '';
     let identifier = '';
+    
+    // Enhanced debugging to help troubleshoot Vercel deployment
+    if (process.env.NODE_ENV !== 'production' || process.env.DEBUG_AUTH === 'true') {
+      console.log('GET /api/users/me - Auth debug:');
+      console.log('Token exists:', !!token);
+      console.log('Environment:', process.env.NODE_ENV);
+      console.log('Cookie name:', getSessionCookieName());
+      console.log('Headers:', Object.fromEntries(request.headers));
+      console.log('Cookies present:', request.cookies.size > 0);
+      if (request.cookies.size > 0) {
+        const cookieNames = Array.from(request.cookies.getAll(), cookie => cookie.name);
+        console.log('Cookie names:', cookieNames);
+      }
+    }
     
     // Try to get user from token
     if (token && token.id) {
@@ -64,7 +83,8 @@ async function getUserHandler(request: NextRequest) {
           identifier: identifier || 'none',
           tokenId: token?.id || 'No token ID',
           headerAddress: walletAddress || 'No header address',
-          cookieAddress: cookieAddress || 'No cookie address'
+          cookieAddress: cookieAddress || 'No cookie address',
+          env: process.env.NODE_ENV || 'unknown'
         }
       };
       
@@ -80,17 +100,22 @@ async function getUserHandler(request: NextRequest) {
     });
     
     // Set cache control headers to help reduce repeated requests
+    // Use shorter cache times in production to prevent stale data issues
+    const maxAge = process.env.NODE_ENV === 'production' ? 5 : 10;
+    
     return NextResponse.json({ user }, { 
       status: 200,
       headers: {
-        'Cache-Control': 'private, max-age=5' // Cache for 5 seconds in the client
+        'Cache-Control': `private, max-age=${maxAge}`, // Cache for 5-10 seconds in the client
+        'Vary': 'Cookie', // Ensure responses vary by cookie to prevent caching issues
       }
     });
   } catch (error) {
     console.error('Error fetching current user:', error);
     return NextResponse.json({ 
       error: 'Failed to fetch user',
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
+      env: process.env.NODE_ENV
     }, { status: 500 });
   }
 }
@@ -201,7 +226,7 @@ async function updateUserHandler(request: NextRequest) {
   }
 }
 
-// Apply middleware with strict rate limiting for the /api/users/me endpoints
+// Update the middleware options for better production handling
 export const GET = withApiMiddleware(getUserHandler, {
   requireAuth: false, // Handle auth in the handler to support multiple auth methods
   connectDb: false, // Handle db connection in the handler
