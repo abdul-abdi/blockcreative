@@ -17,6 +17,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
 import { useSession } from 'next-auth/react';
 import { useUser } from '@/lib/hooks/useUser';
+import Upload from '../../../upload';
 
 // Define types for our data
 interface Submission {
@@ -333,13 +334,19 @@ export default function WriterDashboard() {
               ) : (
                 <div className="text-center p-6 border border-dashed border-white/10 rounded-lg">
                   <p className="text-gray-400 mb-4">You don't have any active submissions yet.</p>
-                  <Link
-                    href="/writer/submit"
-                    className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors inline-flex items-center"
-                  >
-                    <PlusIcon className="w-4 h-4 mr-2" />
-                    Submit your first script
-                  </Link>
+                  
+                  <div className="space-y-4">
+                    <Upload />
+                    <div className="mt-4">
+                      <Link
+                        href="/writer/submit"
+                        className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors inline-flex items-center"
+                      >
+                        <PlusIcon className="w-4 h-4 mr-2" />
+                        View submission guidelines
+                      </Link>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -465,4 +472,4 @@ export default function WriterDashboard() {
       </div>
     </DashboardLayout>
   );
-} 
+}
