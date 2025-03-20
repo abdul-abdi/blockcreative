@@ -11,7 +11,6 @@ import StorySection from './sections/StorySection';
 import CTASection from './sections/CTASection';
 import Footer from './sections/Footer';
 import { ModalProvider } from './ModalProvider';
-import Upload from '@/app/upload';
 
 export default function ClientWrapper() {
   const [isClient, setIsClient] = useState(false);

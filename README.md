@@ -16,7 +16,7 @@ BlockCreative is a platform that connects scriptwriters with producers, leveragi
 - **Frontend**: Next.js with React components
 - **Backend**: Next.js API routes
 - **Database**: MongoDB
-- **Authentication**: NextAuth.js with Reown
+- **Authentication**: Reown
 - **Blockchain**: Lisk Sepolia Testnet
 - **AI**: Google Gemini Pro API
 - **Smart Contracts**: Custom NFT and escrow contracts

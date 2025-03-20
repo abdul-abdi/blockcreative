@@ -1,0 +1,37 @@
+[profile.default]
+src = "contracts"
+out = "out"
+test = "test"
+script = "script"
+libs = ["lib"]
+solc = "0.8.23"
+optimizer = true
+optimizer_runs = 200
+gas_reports = ["*"]
+verbosity = 1
+
+# Add remappings for OpenZeppelin contracts
+remappings = [
+  "@openzeppelin/=lib/openzeppelin-contracts/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"
+]
+
+[rpc_endpoints]
+lisk_sepolia = "${LISK_SEPOLIA_RPC}"
+lisk = "${LISK_RPC}"
+
+# Blockscout verification configuration (dummy API key to satisfy Foundry)
+[etherscan]
+lisk_sepolia = { key = "dummy_key", url = "https://sepolia-blockscout.lisk.com/api" }
+lisk = { key = "dummy_key", url = "https://blockscout.lisk.com/api" }
+
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = true
+
+# Gas settings for Lisk - reduced for testnet with low balance
+gas_limit = 300000
+gas_price = 500000000  # 0.5 Gwei
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options 

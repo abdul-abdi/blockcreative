@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build filter
-    let filter: any = {};
+    const filter: any = {};
     
     // Filter by project ID if provided
     if (project_id) {

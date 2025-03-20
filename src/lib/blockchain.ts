@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import { ENV, SERVER_ENV } from './env-config';
 
 // Load contract ABIs
 import ScriptNFTABI from '../contracts/ScriptNFT.json';
@@ -6,67 +7,99 @@ import ProjectRegistryABI from '../contracts/ProjectRegistry.json';
 import EscrowManagerABI from '../contracts/EscrowManager.json';
 import PlatformFeeManagerABI from '../contracts/PlatformFeeManager.json';
 
-// Get environment variables based on environment
-const getEnvironmentVariables = () => {
-  if (typeof window !== 'undefined') {
-    // Browser environment - use Next.js public env vars
-    return {
-      LISK_RPC_URL: process.env.NEXT_PUBLIC_LISK_RPC_URL,
-      SCRIPT_NFT_ADDRESS: process.env.NEXT_PUBLIC_SCRIPT_NFT_ADDRESS,
-      PROJECT_REGISTRY_ADDRESS: process.env.NEXT_PUBLIC_PROJECT_REGISTRY_ADDRESS,
-      ESCROW_MANAGER_ADDRESS: process.env.NEXT_PUBLIC_ESCROW_MANAGER_ADDRESS,
-      PLATFORM_FEE_MANAGER_ADDRESS: process.env.NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS,
-      LISK_PRIVATE_KEY: process.env.NEXT_PUBLIC_LISK_PRIVATE_KEY // Note: Never expose private keys in browser
-    };
-  }
-
-  // Server environment - use server-side env vars
-  return {
-    LISK_RPC_URL: process.env.LISK_RPC_URL,
-    SCRIPT_NFT_ADDRESS: process.env.SCRIPT_NFT_ADDRESS,
-    PROJECT_REGISTRY_ADDRESS: process.env.PROJECT_REGISTRY_ADDRESS,
-    ESCROW_MANAGER_ADDRESS: process.env.ESCROW_MANAGER_ADDRESS,
-    PLATFORM_FEE_MANAGER_ADDRESS: process.env.PLATFORM_FEE_MANAGER_ADDRESS,
-    LISK_PRIVATE_KEY: process.env.LISK_PRIVATE_KEY
-  };
-};
-
-// Get environment variables
-const envVars = getEnvironmentVariables();
-
-// Contract addresses - these would be set after deployment
-const CONTRACT_ADDRESSES = {
-  SCRIPT_NFT: envVars.SCRIPT_NFT_ADDRESS || '',
-  PROJECT_REGISTRY: envVars.PROJECT_REGISTRY_ADDRESS || '',
-  ESCROW_MANAGER: envVars.ESCROW_MANAGER_ADDRESS || '',
-  PLATFORM_FEE_MANAGER: envVars.PLATFORM_FEE_MANAGER_ADDRESS || '',
-};
-
-// Create provider and platform wallet
+// Cache for providers, wallets and contracts
 let provider: ethers.JsonRpcProvider | null = null;
 let platformWallet: ethers.Wallet | null = null;
-let scriptNFTContract: ethers.Contract | null = null;
-let projectRegistryContract: ethers.Contract | null = null;
-let escrowManagerContract: ethers.Contract | null = null;
-let platformFeeManagerContract: ethers.Contract | null = null;
+
+// Contract cache with typing
+interface ContractCache {
+  scriptNFT: ethers.Contract | null;
+  projectRegistry: ethers.Contract | null;
+  escrowManager: ethers.Contract | null;
+  platformFeeManager: ethers.Contract | null;
+}
+
+// Initialize contract cache
+const contractCache: ContractCache = {
+  scriptNFT: null,
+  projectRegistry: null,
+  escrowManager: null,
+  platformFeeManager: null
+};
+
+// Initialize status tracking
+let initializationAttempted = false;
+let lastInitializationTime: number | null = null;
+let connectionAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 3;
+const RECONNECT_COOLDOWN = 30000; // 30 seconds between reconnection attempts
 
 /**
  * Initialize blockchain connection and contracts
  */
 export const initBlockchain = async () => {
+  // Track initialization attempt
+  initializationAttempted = true;
+  lastInitializationTime = Date.now();
+  
   try {
+    // Check if we're in browser or server environment
+    const isClient = typeof window !== 'undefined';
+    
     // Initialize provider
-    if (envVars.LISK_RPC_URL) {
-      provider = new ethers.JsonRpcProvider(envVars.LISK_RPC_URL);
+    if (ENV.LISK_RPC_URL) {
+      console.log('Connecting to blockchain using RPC URL:', ENV.LISK_RPC_URL);
+      provider = new ethers.JsonRpcProvider(ENV.LISK_RPC_URL);
+      
+      // Test the connection by making a simple call
+      try {
+        const network = await provider.getNetwork();
+        console.log('Connected to blockchain network:', network.name, 'chainId:', network.chainId);
+        
+        // Validate network - Lisk Sepolia is chain ID 4202
+        const expectedChainId = ENV.IS_PROD ? BigInt(4202) : BigInt(4202); // Use same for now, change when mainnet launches
+        if (network.chainId !== expectedChainId) {
+          console.warn(`Connected to unexpected network: chainId ${network.chainId}, expected ${expectedChainId}`);
+        }
+        
+        // Reset connection attempts on success
+        connectionAttempts = 0;
+      } catch (error) {
+        console.error('Failed to connect to blockchain network:', error);
+        provider = null;
+        connectionAttempts++;
+        return false;
+      }
+    } else if (isClient) {
+      // In browser, use a public RPC URL as fallback for development
+      if (ENV.IS_DEV || ENV.IS_TEST) {
+        console.log('Using fallback public RPC URL for development in browser');
+        provider = new ethers.JsonRpcProvider('https://rpc.sepolia-api.lisk.com');
+        
+        // Test the connection
+        try {
+          await provider.getNetwork();
+          connectionAttempts = 0;
+        } catch (error) {
+          console.error('Failed to connect to fallback blockchain network:', error);
+          provider = null;
+          connectionAttempts++;
+          return false;
+        }
+      } else {
+        console.error('Lisk RPC URL not found in browser production environment!');
+        return false;
+      }
     } else {
       console.error('Lisk RPC URL not found!');
       return false;
     }
     
     // Initialize platform wallet (for gas fees) - only on server side or in controlled environments
-    if (envVars.LISK_PRIVATE_KEY && (typeof window === 'undefined' || process.env.NODE_ENV === 'development')) {
-      platformWallet = new ethers.Wallet(envVars.LISK_PRIVATE_KEY, provider);
-    } else if (typeof window !== 'undefined') {
+    const isServer = typeof window === 'undefined';
+    if (isServer && SERVER_ENV.LISK_PRIVATE_KEY) {
+      platformWallet = new ethers.Wallet(SERVER_ENV.LISK_PRIVATE_KEY, provider);
+    } else if (!isServer) {
       console.log('Platform wallet initialization skipped in browser environment');
       // In browser, we'd normally use a wallet connector like MetaMask instead
     } else {
@@ -74,36 +107,40 @@ export const initBlockchain = async () => {
       return false;
     }
     
-    // Initialize contracts - if we have a wallet
+    // Initialize contracts - if we have a wallet or provider
     const signerOrProvider = platformWallet || provider;
+    if (!signerOrProvider) {
+      return false;
+    }
     
-    if (CONTRACT_ADDRESSES.SCRIPT_NFT) {
-      scriptNFTContract = new ethers.Contract(
-        CONTRACT_ADDRESSES.SCRIPT_NFT,
+    // Only initialize contracts if we have their addresses
+    if (ENV.SCRIPT_NFT_ADDRESS) {
+      contractCache.scriptNFT = new ethers.Contract(
+        ENV.SCRIPT_NFT_ADDRESS,
         ScriptNFTABI.abi,
         signerOrProvider
       );
     }
     
-    if (CONTRACT_ADDRESSES.PROJECT_REGISTRY) {
-      projectRegistryContract = new ethers.Contract(
-        CONTRACT_ADDRESSES.PROJECT_REGISTRY,
+    if (ENV.PROJECT_REGISTRY_ADDRESS) {
+      contractCache.projectRegistry = new ethers.Contract(
+        ENV.PROJECT_REGISTRY_ADDRESS,
         ProjectRegistryABI.abi,
         signerOrProvider
       );
     }
     
-    if (CONTRACT_ADDRESSES.ESCROW_MANAGER) {
-      escrowManagerContract = new ethers.Contract(
-        CONTRACT_ADDRESSES.ESCROW_MANAGER,
+    if (ENV.ESCROW_MANAGER_ADDRESS) {
+      contractCache.escrowManager = new ethers.Contract(
+        ENV.ESCROW_MANAGER_ADDRESS,
         EscrowManagerABI.abi,
         signerOrProvider
       );
     }
     
-    if (CONTRACT_ADDRESSES.PLATFORM_FEE_MANAGER) {
-      platformFeeManagerContract = new ethers.Contract(
-        CONTRACT_ADDRESSES.PLATFORM_FEE_MANAGER,
+    if (ENV.PLATFORM_FEE_MANAGER_ADDRESS) {
+      contractCache.platformFeeManager = new ethers.Contract(
+        ENV.PLATFORM_FEE_MANAGER_ADDRESS,
         PlatformFeeManagerABI.abi,
         signerOrProvider
       );
@@ -112,39 +149,190 @@ export const initBlockchain = async () => {
     return true;
   } catch (error) {
     console.error('Error initializing blockchain:', error);
+    connectionAttempts++;
     return false;
   }
 };
 
 /**
- * Get provider instance
+ * Force a reconnection attempt if the previous connection failed
  */
-export const getProvider = () => provider;
+export const reconnectBlockchain = async (): Promise<boolean> => {
+  // Avoid reconnecting too frequently
+  if (lastInitializationTime && (Date.now() - lastInitializationTime < RECONNECT_COOLDOWN)) {
+    console.log('Reconnection attempt too soon, cooling down');
+    return false;
+  }
+  
+  // Don't exceed maximum reconnection attempts
+  if (connectionAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.error(`Maximum reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached`);
+    return false;
+  }
+  
+  // Reset provider and contracts to force clean reconnection
+  provider = null;
+  platformWallet = null;
+  contractCache.scriptNFT = null;
+  contractCache.projectRegistry = null;
+  contractCache.escrowManager = null;
+  contractCache.platformFeeManager = null;
+  
+  console.log(`Attempting blockchain reconnection (attempt ${connectionAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+  return initBlockchain();
+};
+
+/**
+ * Get the current status of the blockchain connection
+ */
+export const getBlockchainStatus = async () => {
+  const providerConnected = provider !== null;
+  
+  // If provider is null, try reconnection if we haven't exceeded attempts
+  if (!providerConnected && connectionAttempts < MAX_RECONNECT_ATTEMPTS) {
+    console.log('Provider not connected, attempting reconnection');
+    const reconnected = await reconnectBlockchain();
+    return {
+      providerConnected: reconnected,
+      configPresent: !!ENV.LISK_RPC_URL && !!SERVER_ENV.LISK_PRIVATE_KEY,
+      initializationAttempted,
+      connectionAttempts,
+      lastInitializationTime,
+      reconnected
+    };
+  }
+  
+  return {
+    providerConnected,
+    configPresent: !!ENV.LISK_RPC_URL && !!SERVER_ENV.LISK_PRIVATE_KEY,
+    initializationAttempted,
+    connectionAttempts,
+    lastInitializationTime,
+    contracts: {
+      scriptNFT: contractCache.scriptNFT !== null,
+      projectRegistry: contractCache.projectRegistry !== null,
+      escrowManager: contractCache.escrowManager !== null,
+      platformFeeManager: contractCache.platformFeeManager !== null
+    }
+  };
+};
+
+/**
+ * Validate connected network is the expected one
+ */
+export const validateNetwork = async (): Promise<{ valid: boolean; expected: bigint; actual?: bigint }> => {
+  if (!provider) {
+    return { valid: false, expected: BigInt(4202) };
+  }
+  
+  try {
+    const network = await provider.getNetwork();
+    const expectedChainId = ENV.IS_PROD ? BigInt(4202) : BigInt(4202); // Use same for now, change when mainnet launches
+    
+    return {
+      valid: network.chainId === expectedChainId,
+      expected: expectedChainId,
+      actual: network.chainId
+    };
+  } catch (error) {
+    console.error('Error validating network:', error);
+    return { valid: false, expected: BigInt(4202) };
+  }
+};
+
+// Initialize blockchain when this module is imported on server-side
+if (typeof window === 'undefined') {
+  console.log('Auto-initializing blockchain provider on server...');
+  initBlockchain().then(success => {
+    if (success) {
+      console.log('Blockchain provider initialized successfully');
+    } else {
+      console.error('Failed to initialize blockchain provider during auto-initialization');
+    }
+  }).catch(error => {
+    console.error('Error during blockchain auto-initialization:', error);
+  });
+}
+
+/**
+ * Get the current provider, initializing it if necessary
+ */
+export const getProvider = async () => {
+  if (!provider && !initializationAttempted) {
+    await initBlockchain();
+  } else if (!provider && initializationAttempted && connectionAttempts < MAX_RECONNECT_ATTEMPTS) {
+    // If initialization was attempted but provider is null, try reconnection
+    if (lastInitializationTime && (Date.now() - lastInitializationTime > RECONNECT_COOLDOWN)) {
+      await reconnectBlockchain();
+    }
+  }
+  return provider;
+};
 
 /**
  * Get platform wallet instance
  */
-export const getPlatformWallet = () => platformWallet;
+export const getPlatformWallet = async () => {
+  if (!platformWallet && !initializationAttempted) {
+    await initBlockchain();
+  }
+  return platformWallet;
+};
+
+/**
+ * Get a contract, with type safety and reconnection attempt if needed
+ * @param contractName The name of the contract to retrieve
+ * @returns The contract instance or null if not available
+ */
+export const getContract = async <T extends keyof ContractCache>(
+  contractName: T
+): Promise<ethers.Contract | null> => {
+  const contract = contractCache[contractName];
+  
+  // If contract is null but we haven't initialized yet, try initialization
+  if (!contract && !initializationAttempted) {
+    await initBlockchain();
+    return contractCache[contractName];
+  }
+  
+  // If contract is null after initialization, try reconnection
+  if (!contract && initializationAttempted && connectionAttempts < MAX_RECONNECT_ATTEMPTS) {
+    if (lastInitializationTime && (Date.now() - lastInitializationTime > RECONNECT_COOLDOWN)) {
+      await reconnectBlockchain();
+      return contractCache[contractName];
+    }
+  }
+  
+  return contract;
+};
 
 /**
  * Get ScriptNFT contract instance
  */
-export const getScriptNFTContract = () => scriptNFTContract;
+export const getScriptNFTContract = async () => {
+  return getContract('scriptNFT');
+};
 
 /**
  * Get ProjectRegistry contract instance
  */
-export const getProjectRegistryContract = () => projectRegistryContract;
+export const getProjectRegistryContract = async () => {
+  return getContract('projectRegistry');
+};
 
 /**
  * Get EscrowManager contract instance
  */
-export const getEscrowManagerContract = () => escrowManagerContract;
+export const getEscrowManagerContract = async () => {
+  return getContract('escrowManager');
+};
 
 /**
  * Get PlatformFeeManager contract instance
  */
-export const getPlatformFeeManagerContract = () => platformFeeManagerContract;
+export const getPlatformFeeManagerContract = async () => {
+  return getContract('platformFeeManager');
+};
 
 /**
  * Mint a new NFT for a script
@@ -155,28 +343,46 @@ export const mintScriptNFT = async (
   submissionId: string
 ) => {
   try {
-    if (!scriptNFTContract || !platformWallet) {
-      const initialized = await initBlockchain();
-      if (!initialized || !scriptNFTContract) {
-        throw new Error('Failed to initialize blockchain or Script NFT contract');
-      }
+    const contract = await getScriptNFTContract();
+    const wallet = await getPlatformWallet();
+    
+    if (!contract || !wallet) {
+      throw new Error('Failed to initialize blockchain or Script NFT contract');
     }
     
-    // At this point, we've confirmed scriptNFTContract is not null
-    const contract = scriptNFTContract!;
+    // Import gas manager functions
+    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
     
     // Convert string submissionId to BigInt
     const submissionIdBigInt = BigInt(submissionId);
     
-    // Mint NFT
+    // Prepare arguments for the function call
+    const args = [recipientAddress, scriptHash, submissionIdBigInt];
+    
+    // Use gas manager to get optimal gas settings
+    const gasSettings = await prepareGasSettings(
+      contract,
+      'mintScriptNFT',
+      args,
+      {
+        gasStrategy: GasPriceStrategy.STANDARD // Standard priority for NFT minting
+      }
+    );
+    
+    // Mint NFT with optimized gas settings
     const tx = await contract.mintScriptNFT(
-      recipientAddress,
-      scriptHash,
-      submissionIdBigInt
+      ...args,
+      {
+        gasPrice: gasSettings.gasPrice,
+        gasLimit: gasSettings.gasLimit
+      }
     );
     
     // Wait for transaction to be mined
     const receipt = await tx.wait();
+    
+    // Track gas usage for analytics and future optimization
+    await trackGasUsage(receipt.hash, 'mintScriptNFT', gasSettings.gasLimit || BigInt(0));
     
     // Find the token ID from the event
     // Instead of using getEvent which causes type issues, we'll look for the event by name pattern
@@ -188,7 +394,7 @@ export const mintScriptNFT = async (
           tokenId = parsedLog.args.tokenId;
           break;
         }
-      } catch (e) {
+      } catch {
         // Skip logs that can't be parsed
         continue;
       }
@@ -202,6 +408,7 @@ export const mintScriptNFT = async (
       success: true,
       tokenId: tokenId.toString(),
       transactionHash: receipt.hash,
+      gasUsed: receipt.gasUsed.toString()
     };
   } catch (error) {
     console.error('Failed to mint script NFT:', error);
@@ -221,29 +428,48 @@ export const transferNFTOwnership = async (
   toAddress: string
 ) => {
   try {
-    if (!scriptNFTContract || !platformWallet) {
-      const initialized = await initBlockchain();
-      if (!initialized || !scriptNFTContract) {
-        throw new Error('Failed to initialize blockchain or Script NFT contract');
-      }
+    const contract = await getScriptNFTContract();
+    const wallet = await getPlatformWallet();
+    
+    if (!contract || !wallet) {
+      throw new Error('Failed to initialize blockchain or Script NFT contract');
     }
+    
+    // Import gas manager functions
+    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
     
     // Convert string tokenId to BigInt
     const tokenIdBigInt = BigInt(tokenId);
     
-    // Transfer NFT - platform wallet pays gas
-    const tx = await scriptNFTContract['transferFrom(address,address,uint256)'](
-      fromAddress,
-      toAddress,
-      tokenIdBigInt
+    // Prepare arguments for the function call
+    const args = [fromAddress, toAddress, tokenIdBigInt];
+    
+    // Use gas manager to get optimal gas settings
+    const gasSettings = await prepareGasSettings(
+      contract,
+      'transferFrom',
+      args,
+      {
+        gasStrategy: GasPriceStrategy.STANDARD // Standard priority for NFT transfer
+      }
+    );
+    
+    // Transfer NFT with optimized gas settings
+    const tx = await contract['transferFrom(address,address,uint256)'](
+      ...args,
+      gasSettings
     );
     
     // Wait for transaction to be mined
     const receipt = await tx.wait();
     
+    // Track gas usage for analytics and future optimization
+    await trackGasUsage(receipt.hash, 'transferFrom', gasSettings.gasLimit || BigInt(0));
+    
     return {
       success: true,
       transactionHash: receipt.hash,
+      gasUsed: receipt.gasUsed.toString()
     };
   } catch (error) {
     console.error('Failed to transfer NFT ownership:', error);
@@ -262,24 +488,42 @@ export const createProject = async (
   projectHash: string
 ) => {
   try {
-    if (!projectRegistryContract || !platformWallet) {
-      const initialized = await initBlockchain();
-      if (!initialized || !projectRegistryContract) {
-        throw new Error('Failed to initialize blockchain or Project Registry contract');
-      }
+    const contract = await getProjectRegistryContract();
+    const wallet = await getPlatformWallet();
+    
+    if (!contract || !wallet) {
+      throw new Error('Failed to initialize blockchain or Project Registry contract');
     }
     
-    // At this point, we've confirmed projectRegistryContract is not null
-    const contract = projectRegistryContract!;
+    // Import gas manager functions
+    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
     
-    // Create project
-    const tx = await contract.createProject(projectHash);
+    // Prepare arguments for the function call
+    const args = [projectHash];
+    
+    // Use gas manager to get optimal gas settings
+    const gasSettings = await prepareGasSettings(
+      contract,
+      'createProject',
+      args,
+      {
+        gasStrategy: GasPriceStrategy.STANDARD // Standard priority for project creation
+      }
+    );
+    
+    // Create project with optimized gas settings
+    const tx = await contract.createProject(
+      ...args,
+      gasSettings
+    );
     
     // Wait for transaction to be mined
     const receipt = await tx.wait();
     
+    // Track gas usage for analytics and future optimization
+    await trackGasUsage(receipt.hash, 'createProject', gasSettings.gasLimit || BigInt(0));
+    
     // Find the project ID from the event
-    // Instead of using getEvent which causes type issues, we'll look for the event by name pattern
     let projectId = null;
     for (const log of receipt.logs) {
       try {
@@ -288,7 +532,7 @@ export const createProject = async (
           projectId = parsedLog.args.projectId;
           break;
         }
-      } catch (e) {
+      } catch {
         // Skip logs that can't be parsed
         continue;
       }
@@ -302,6 +546,7 @@ export const createProject = async (
       success: true,
       projectId: projectId.toString(),
       transactionHash: receipt.hash,
+      gasUsed: receipt.gasUsed.toString()
     };
   } catch (error) {
     console.error('Failed to create project:', error);
@@ -330,30 +575,50 @@ export const fundProjectEscrow = async (
   error?: string 
 }> => {
   try {
-    if (!escrowManagerContract || !platformWallet) {
-      const initialized = await initBlockchain();
-      if (!initialized || !escrowManagerContract) {
-        return {
-          success: false,
-          error: 'Failed to initialize blockchain connection'
-        };
-      }
+    const contract = await getEscrowManagerContract();
+    const wallet = await getPlatformWallet();
+    
+    if (!contract || !wallet) {
+      return {
+        success: false,
+        error: 'Failed to initialize blockchain connection'
+      };
     }
+
+    // Import gas manager functions
+    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
 
     // Convert amount to wei (assuming amount is in ETH)
     const amountInWei = ethers.parseEther(amount);
 
-    // Fund project escrow
-    const tx = await escrowManagerContract.fundProject(
-      projectId,
+    // Prepare arguments for the function call
+    const args = [projectId];
+
+    // Use gas manager to get optimal gas settings
+    const gasSettings = await prepareGasSettings(
+      contract,
+      'fundProject',
+      args,
       {
         value: amountInWei,
-        gasLimit: 300000 // Set appropriate gas limit
+        gasStrategy: GasPriceStrategy.STANDARD // Standard priority for funding
+      }
+    );
+
+    // Fund project escrow with optimized gas settings
+    const tx = await contract.fundProject(
+      ...args,
+      {
+        ...gasSettings,
+        value: amountInWei
       }
     );
 
     // Wait for transaction to be mined
     const receipt = await tx.wait();
+
+    // Track gas usage for analytics and future optimization
+    await trackGasUsage(receipt.hash, 'fundProject', gasSettings.gasLimit || BigInt(0));
 
     // Calculate gas fee
     const gasFee = (receipt.gasUsed * receipt.gasPrice).toString();
@@ -382,25 +647,43 @@ export const releasePayment = async (
   scriptNFTId: string
 ) => {
   try {
-    if (!escrowManagerContract || !platformWallet) {
-      const initialized = await initBlockchain();
-      if (!initialized || !escrowManagerContract) {
-        throw new Error('Failed to initialize blockchain or Escrow Manager contract');
-      }
+    const contract = await getEscrowManagerContract();
+    const wallet = await getPlatformWallet();
+    
+    if (!contract || !wallet) {
+      throw new Error('Failed to initialize blockchain or Escrow Manager contract');
     }
+    
+    // Import gas manager functions
+    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
     
     // Convert string submissionId to BigInt
     const submissionIdBigInt = BigInt(submissionId);
     
-    // Release payment
-    const tx = await escrowManagerContract.releasePayment(
-      submissionIdBigInt,
-      writerAddress,
-      producerAddress
+    // Prepare arguments for the function call
+    const args = [submissionIdBigInt, writerAddress, producerAddress];
+    
+    // Use gas manager to get optimal gas settings
+    const gasSettings = await prepareGasSettings(
+      contract,
+      'releasePayment',
+      args,
+      {
+        gasStrategy: GasPriceStrategy.STANDARD // Standard priority for payment release
+      }
+    );
+    
+    // Release payment with optimized gas settings
+    const tx = await contract.releasePayment(
+      ...args,
+      gasSettings
     );
     
     // Wait for transaction to be mined
     const receipt = await tx.wait();
+    
+    // Track gas usage for analytics and future optimization
+    await trackGasUsage(receipt.hash, 'releasePayment', gasSettings.gasLimit || BigInt(0));
     
     // Now transfer the NFT
     const nftResult = await transferNFTOwnership(
@@ -417,6 +700,8 @@ export const releasePayment = async (
       success: true,
       paymentTransactionHash: receipt.hash,
       nftTransactionHash: nftResult.transactionHash,
+      paymentGasUsed: receipt.gasUsed.toString(),
+      nftGasUsed: nftResult.gasUsed
     };
   } catch (error) {
     console.error('Failed to release payment:', error);
@@ -432,11 +717,10 @@ export const releasePayment = async (
  */
 export const getTransactionStatus = async (txHash: string) => {
   try {
+    const provider = await getProvider();
+    
     if (!provider) {
-      const initialized = await initBlockchain();
-      if (!initialized || !provider) {
-        throw new Error('Failed to initialize blockchain provider');
-      }
+      throw new Error('Failed to initialize blockchain provider');
     }
     
     const receipt = await provider.getTransactionReceipt(txHash);
@@ -448,6 +732,12 @@ export const getTransactionStatus = async (txHash: string) => {
         confirmations: 0,
       };
     }
+
+    // Get transaction details for gas information
+    const tx = await provider.getTransaction(txHash);
+    const gasPrice = tx?.gasPrice?.toString() ?? 'N/A';
+    const maxFeePerGas = tx?.maxFeePerGas?.toString() ?? 'N/A';
+    const maxPriorityFeePerGas = tx?.maxPriorityFeePerGas?.toString() ?? 'N/A';
     
     return {
       success: true,
@@ -455,12 +745,94 @@ export const getTransactionStatus = async (txHash: string) => {
       confirmations: receipt.confirmations,
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString(),
+      gasPrice,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      transactionType: tx?.type === 2 ? 'EIP-1559' : 'Legacy',
+      totalGasCost: (receipt.gasUsed * receipt.gasPrice).toString()
     };
   } catch (error) {
     console.error('Failed to get transaction status:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+};
+
+/**
+ * Refund escrowed funds to producer
+ * @param projectId The project ID
+ * @param producerAddress The producer's wallet address
+ * @returns Result of the transaction
+ */
+export const refundProducer = async (
+  projectId: string,
+  producerAddress: string
+): Promise<{ 
+  success: boolean; 
+  transactionHash?: string; 
+  refundAmount?: string;
+  error?: string 
+}> => {
+  try {
+    const contract = await getEscrowManagerContract();
+    const wallet = await getPlatformWallet();
+    
+    if (!contract || !wallet) {
+      return {
+        success: false,
+        error: 'Failed to initialize blockchain connection'
+      };
+    }
+
+    // Import gas manager functions
+    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
+
+    // Get current funds in escrow for the project
+    const funds = await contract.getProjectFunds(projectId);
+    if (funds <= 0) {
+      return {
+        success: false,
+        error: 'No funds available for refund'
+      };
+    }
+
+    // Prepare arguments for the function call
+    const args = [projectId, producerAddress];
+
+    // Use gas manager to get optimal gas settings
+    const gasSettings = await prepareGasSettings(
+      contract,
+      'refundProducer',
+      args,
+      {
+        gasStrategy: GasPriceStrategy.STANDARD // Standard priority for refunds
+      }
+    );
+
+    // Refund project escrow with optimized gas settings
+    const tx = await contract.refundProducer(
+      ...args,
+      gasSettings
+    );
+
+    // Wait for transaction to be mined
+    const receipt = await tx.wait();
+
+    // Track gas usage for analytics and future optimization
+    await trackGasUsage(receipt.hash, 'refundProducer', gasSettings.gasLimit || BigInt(0));
+
+    return {
+      success: true,
+      transactionHash: receipt.hash,
+      refundAmount: ethers.formatEther(funds)
+    };
+  } catch (error) {
+    console.error('Error refunding project escrow:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }; 

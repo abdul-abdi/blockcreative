@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const skip = (page - 1) * limit;
     
-    let query: any = { project_id: projectId };
+    const query: any = { project_id: projectId };
     
     // If user is a writer, only show their submissions
     if (!isProducer && !isAdmin && token.role === 'writer') {

@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import { Project, Submission, Transaction, User } from '@/models';
 import { getToken } from 'next-auth/jwt';
 import { v4 as uuidv4 } from 'uuid';
+import { createApiError, createApiSuccess, ErrorType } from '@/lib/api-error';
 
 // POST /api/blockchain/verify-transaction - Verify a blockchain transaction
 export async function POST(request: NextRequest) {
@@ -10,7 +11,10 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const token = await getToken({ req: request as any });
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createApiError(
+        ErrorType.UNAUTHORIZED,
+        'Authentication required'
+      );
     }
 
     // Connect to the database
@@ -28,26 +32,34 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!transaction_hash || !transaction_type) {
-      return NextResponse.json({ 
-        error: 'Transaction hash and type are required' 
-      }, { status: 400 });
+      return createApiError(
+        ErrorType.MISSING_FIELD,
+        'Transaction hash and type are required',
+        { field: !transaction_hash ? 'transaction_hash' : 'transaction_type' }
+      );
     }
 
     // Validate transaction type
     const validTypes = ['project_funding', 'script_purchase', 'nft_minting'];
     if (!validTypes.includes(transaction_type)) {
-      return NextResponse.json({ 
-        error: `Invalid transaction type. Must be one of: ${validTypes.join(', ')}` 
-      }, { status: 400 });
+      return createApiError(
+        ErrorType.INVALID_FORMAT,
+        `Invalid transaction type. Must be one of: ${validTypes.join(', ')}`,
+        { field: 'transaction_type', details: { validTypes } }
+      );
     }
 
     // Check if transaction already exists
     const existingTransaction = await Transaction.findOne({ transaction_hash });
     if (existingTransaction) {
-      return NextResponse.json({ 
-        error: 'Transaction already processed',
-        transaction: existingTransaction
-      }, { status: 400 });
+      return createApiError(
+        ErrorType.ALREADY_EXISTS,
+        'Transaction already processed',
+        { 
+          transactionHash: transaction_hash,
+          details: { transactionId: existingTransaction.id }
+        }
+      );
     }
 
     // Validate transaction based on type
@@ -59,17 +71,28 @@ export async function POST(request: NextRequest) {
       case 'project_funding':
         // Validate project exists
         if (!project_id) {
-          return NextResponse.json({ error: 'Project ID is required for project funding' }, { status: 400 });
+          return createApiError(
+            ErrorType.MISSING_FIELD,
+            'Project ID is required for project funding',
+            { field: 'project_id' }
+          );
         }
         
         projectData = await Project.findOne({ id: project_id });
         if (!projectData) {
-          return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+          return createApiError(
+            ErrorType.NOT_FOUND,
+            'Project not found',
+            { field: 'project_id', details: { project_id } }
+          );
         }
         
         // Only producers can fund their own projects
         if (token.role !== 'producer' || projectData.producer_id !== token.id) {
-          return NextResponse.json({ error: 'Only the project owner can fund this project' }, { status: 403 });
+          return createApiError(
+            ErrorType.FORBIDDEN,
+            'Only the project owner can fund this project'
+          );
         }
         
         // Update project funding status
@@ -82,14 +105,24 @@ export async function POST(request: NextRequest) {
       case 'script_purchase':
         // Validate submission exists
         if (!submission_id || !project_id) {
-          return NextResponse.json({ 
-            error: 'Project ID and Submission ID are required for script purchase' 
-          }, { status: 400 });
+          return createApiError(
+            ErrorType.MISSING_FIELD,
+            'Project ID and Submission ID are required for script purchase',
+            { 
+              field: !submission_id && !project_id ? 'submission_id, project_id' :
+                    !submission_id ? 'submission_id' : 'project_id',
+              details: { requiredFields: ['submission_id', 'project_id'] }
+            }
+          );
         }
         
         projectData = await Project.findOne({ id: project_id });
         if (!projectData) {
-          return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+          return createApiError(
+            ErrorType.NOT_FOUND,
+            'Project not found',
+            { field: 'project_id', details: { project_id } }
+          );
         }
         
         submissionData = await Submission.findOne({ 
@@ -98,12 +131,19 @@ export async function POST(request: NextRequest) {
         });
         
         if (!submissionData) {
-          return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+          return createApiError(
+            ErrorType.NOT_FOUND,
+            'Submission not found',
+            { field: 'submission_id', details: { submission_id, project_id } }
+          );
         }
         
         // Only producers can purchase scripts for their own projects
         if (token.role !== 'producer' || projectData.producer_id !== token.id) {
-          return NextResponse.json({ error: 'Only the project owner can purchase this script' }, { status: 403 });
+          return createApiError(
+            ErrorType.FORBIDDEN,
+            'Only the project owner can purchase this script'
+          );
         }
         
         // Update submission status
@@ -120,14 +160,24 @@ export async function POST(request: NextRequest) {
       case 'nft_minting':
         // Validate submission exists and is purchased
         if (!submission_id || !project_id) {
-          return NextResponse.json({ 
-            error: 'Project ID and Submission ID are required for NFT minting' 
-          }, { status: 400 });
+          return createApiError(
+            ErrorType.MISSING_FIELD,
+            'Project ID and Submission ID are required for NFT minting',
+            { 
+              field: !submission_id && !project_id ? 'submission_id, project_id' :
+                    !submission_id ? 'submission_id' : 'project_id',
+              details: { requiredFields: ['submission_id', 'project_id'] }
+            }
+          );
         }
         
         projectData = await Project.findOne({ id: project_id });
         if (!projectData) {
-          return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+          return createApiError(
+            ErrorType.NOT_FOUND,
+            'Project not found',
+            { field: 'project_id', details: { project_id } }
+          );
         }
         
         submissionData = await Submission.findOne({ 
@@ -136,19 +186,28 @@ export async function POST(request: NextRequest) {
         });
         
         if (!submissionData) {
-          return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+          return createApiError(
+            ErrorType.NOT_FOUND,
+            'Submission not found',
+            { field: 'submission_id', details: { submission_id, project_id } }
+          );
         }
         
         // Check if submission is purchased
         if (!submissionData.is_purchased) {
-          return NextResponse.json({ 
-            error: 'Script must be purchased before minting an NFT' 
-          }, { status: 400 });
+          return createApiError(
+            ErrorType.VALIDATION,
+            'Script must be purchased before minting an NFT',
+            { details: { submission_id } }
+          );
         }
         
         // Only producers can mint NFTs for their purchased scripts
         if (token.role !== 'producer' || projectData.producer_id !== token.id) {
-          return NextResponse.json({ error: 'Only the project owner can mint an NFT for this script' }, { status: 403 });
+          return createApiError(
+            ErrorType.FORBIDDEN,
+            'Only the project owner can mint an NFT for this script'
+          );
         }
         
         // Update submission with NFT data
@@ -180,13 +239,17 @@ export async function POST(request: NextRequest) {
 
     await transaction.save();
 
-    return NextResponse.json({
+    return createApiSuccess({
       message: 'Transaction verified successfully',
       transaction
-    }, { status: 201 });
+    }, 201);
   } catch (error) {
     console.error('Error verifying blockchain transaction:', error);
-    return NextResponse.json({ error: 'Failed to verify transaction' }, { status: 500 });
+    return createApiError(
+      ErrorType.INTERNAL_ERROR,
+      'Failed to verify transaction',
+      { details: error instanceof Error ? error.message : 'Unknown error' }
+    );
   }
 }
 
@@ -196,7 +259,10 @@ export async function GET(request: NextRequest) {
     // Check authentication
     const token = await getToken({ req: request as any });
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createApiError(
+        ErrorType.UNAUTHORIZED,
+        'Authentication required'
+      );
     }
 
     // Connect to the database
@@ -210,7 +276,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     
     // Build query
-    let query: any = {};
+    const query: any = {};
     
     // Filter by user (either as sender or recipient)
     query.$or = [
@@ -233,7 +299,7 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .select('-__v');
     
-    return NextResponse.json({
+    return createApiSuccess({
       transactions,
       pagination: {
         total,
@@ -241,9 +307,13 @@ export async function GET(request: NextRequest) {
         limit,
         pages: Math.ceil(total / limit)
       }
-    }, { status: 200 });
+    });
   } catch (error) {
     console.error('Error fetching blockchain transactions:', error);
-    return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
+    return createApiError(
+      ErrorType.INTERNAL_ERROR,
+      'Failed to fetch transactions',
+      { details: error instanceof Error ? error.message : 'Unknown error' }
+    );
   }
 } 

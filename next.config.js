@@ -22,12 +22,29 @@ const nextConfig = {
     scrollRestoration: true,
     optimizePackageImports: ['@heroicons/react', 'framer-motion'],
   },
+  // Transpile problematic packages
+  transpilePackages: ['ethers', 'web3', 'wagmi', 'viem'],
   // App Icon configuration
   webpack(config) {
     config.module.rules.push({
       test: /\.svg$/,
       use: ['@svgr/webpack'],
     });
+    
+    // Handle ethers.js and other problematic dependencies
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+      crypto: require.resolve('crypto-browserify'),
+      stream: require.resolve('stream-browserify'),
+      http: require.resolve('stream-http'),
+      https: require.resolve('https-browserify'),
+      zlib: require.resolve('browserify-zlib'),
+      path: require.resolve('path-browserify'),
+    };
+    
     return config;
   },
   // Important for auth cookies to work properly in Vercel

@@ -1,0 +1,33 @@
+{
+  "name": "blockcreative-blockchain",
+  "version": "1.0.0",
+  "main": "deploy-all.js",
+  "type": "commonjs",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "forge test",
+    "deploy": "node deploy-all.js",
+    "deploy:testnet": "DEPLOY_NETWORK=lisk_sepolia node deploy-all.js",
+    "deploy:mainnet": "DEPLOY_NETWORK=lisk node deploy-all.js",
+    "verify:testnet": "DEPLOY_NETWORK=lisk_sepolia node ./script/VerifyOnly.js",
+    "verify:mainnet": "DEPLOY_NETWORK=lisk node ./script/VerifyOnly.js",
+    "extract:abi": "node ./script/ExtractABI.js",
+    "build": "forge build",
+    "coverage": "forge coverage",
+    "setup": "bash setup.sh"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "BlockCreative Smart Contracts",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.2"
+  },
+  "devDependencies": {
+    "foundry": "^0.2.0"
+  }
+}

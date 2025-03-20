@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
+import ScriptSynopsis from '@/components/ScriptSynopsis';
 
 interface ScriptData {
   title: string;
@@ -30,6 +31,15 @@ interface ScriptData {
     theme: number;
     overallScore: number;
   } | null;
+  aiSynopsis?: {
+    logline: string;
+    synopsis: string;
+    tone: string;
+    themes: string[];
+    title_suggestion?: string;
+    target_audience?: string[];
+    generated_at?: Date;
+  };
 }
 
 const initialScriptData: ScriptData = {
@@ -57,6 +67,7 @@ const SubmitScriptContent = () => {
   const [scriptData, setScriptData] = useState<ScriptData>(initialScriptData);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingSynopsis, setIsGeneratingSynopsis] = useState(false);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,7 +79,7 @@ const SubmitScriptContent = () => {
   const analyzeScript = async () => {
     setIsAnalyzing(true);
     
-    // Simulate AI analysis
+    // Simulate AI analysis without requiring file upload
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     setScriptData(prev => ({
@@ -98,6 +109,29 @@ const SubmitScriptContent = () => {
     
     // Redirect to submissions page
     router.push('/writer/submissions');
+  };
+
+  const generateSynopsis = async () => {
+    setIsGeneratingSynopsis(true);
+    
+    // Simulate API call to generate synopsis
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Mock response data
+    setScriptData(prev => ({
+      ...prev,
+      aiSynopsis: {
+        logline: "A struggling writer discovers an AI that can predict blockbuster scripts, but must choose between fortune and authentic storytelling when the AI begins to manipulate reality.",
+        synopsis: "In a near-future Los Angeles, aspiring screenwriter Alex Chen is on the verge of giving up when she discovers a mysterious AI program that can predict which scripts will become blockbusters. As her AI-assisted work gains industry attention, Alex rises to fame and fortune. However, she soon notices that elements from her scripts begin manifesting in real life - sometimes with dangerous consequences. When a powerful studio executive offers to buy the AI for billions, Alex must decide whether to continue using the reality-altering technology for personal gain or return to authentic storytelling and prevent potential catastrophe.",
+        tone: "Techno-thriller with dark comedy elements",
+        themes: ["Technology vs. creativity", "Fame and authenticity", "Ethical responsibility", "Reality vs. fiction"],
+        title_suggestion: "Predictive Text",
+        target_audience: ["18-35 tech-savvy viewers", "Film industry enthusiasts", "Thriller fans"],
+        generated_at: new Date()
+      }
+    }));
+    
+    setIsGeneratingSynopsis(false);
   };
 
   const renderStepContent = () => {
@@ -188,39 +222,21 @@ const SubmitScriptContent = () => {
         return (
           <div className="space-y-6">
             <div className="border-2 border-dashed border-white/10 rounded-lg p-8 text-center">
-              {scriptData.file ? (
-                <div className="space-y-4">
-                  <CheckCircleIcon className="h-12 w-12 text-green-400 mx-auto" />
-                  <div>
-                    <p className="text-white font-medium">{scriptData.file.name}</p>
-                    <p className="text-sm text-gray-400">
-                      {(scriptData.file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setScriptData(prev => ({ ...prev, file: null }))}
-                    className="text-sm text-[rgb(var(--accent-primary))] hover:underline"
-                  >
-                    Remove file
-                  </button>
+              <div className="space-y-4">
+                <ArrowUpTrayIcon className="h-12 w-12 text-gray-400 mx-auto" />
+                <div>
+                  <p className="text-white font-medium">File upload functionality temporarily unavailable</p>
+                  <p className="text-sm text-gray-400">
+                    Please proceed with script analysis using the metadata you've provided
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <ArrowUpTrayIcon className="h-12 w-12 text-gray-400 mx-auto" />
-                  <div>
-                    <p className="text-white font-medium">Drop your script file here</p>
-                    <p className="text-sm text-gray-400">
-                      or click to browse (PDF, Final Draft, or Fountain)
-                    </p>
-                  </div>
-                  <input
-                    type="file"
-                    onChange={handleFileUpload}
-                    accept=".pdf,.fdx,.fountain"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                </div>
-              )}
+                <button
+                  onClick={() => setCurrentStep(2)}
+                  className="px-4 py-2 rounded-lg bg-[rgb(var(--accent-primary))] text-white font-medium hover:bg-opacity-90"
+                >
+                  Continue to Analysis
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -237,6 +253,44 @@ const SubmitScriptContent = () => {
               </div>
               
               <AIAnalysisChart analysisData={scriptData.aiAnalysis} />
+            </div>
+            
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold gradient-text">AI Synopsis Generation</h3>
+                
+                {!scriptData.aiSynopsis && !isGeneratingSynopsis && (
+                  <button
+                    onClick={generateSynopsis}
+                    className="px-4 py-2 rounded-lg bg-[rgb(var(--accent-primary))] text-white font-medium hover:bg-opacity-90 flex items-center gap-2"
+                  >
+                    <ChartBarIcon className="h-5 w-5" />
+                    Generate Synopsis
+                  </button>
+                )}
+              </div>
+              
+              {isGeneratingSynopsis ? (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-white font-medium">Generating synopsis...</p>
+                  <p className="text-sm text-gray-400">This may take a few moments</p>
+                </div>
+              ) : scriptData.aiSynopsis ? (
+                <ScriptSynopsis 
+                  synopsis={scriptData.aiSynopsis} 
+                  showRegenerateButton={true}
+                  onRegenerateClick={generateSynopsis}
+                  isLoading={isGeneratingSynopsis}
+                />
+              ) : (
+                <div className="text-center py-8 border border-dashed border-gray-600 rounded-lg">
+                  <p className="text-white font-medium">Generate an AI-powered synopsis for your script</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    The AI will create a compelling logline, synopsis, and identify themes and tone
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : (

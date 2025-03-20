@@ -19,7 +19,6 @@ import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
 import { useSession } from 'next-auth/react';
 import { useUser } from '@/lib/hooks/useUser';
-import Upload from '../../../upload';
 
 // Define interfaces for typed data
 interface Analysis {
@@ -409,7 +408,7 @@ export default function ProducerDashboard() {
                         </div>
                         <div className="col-span-2 sm:col-span-1">
                           <p className="text-xs sm:text-sm text-gray-400">Top Scripts</p>
-                          <p className="text-base sm:text-lg font-semibold text-white">{project.recentSubmissions.length}</p>
+                          <p className="text-base sm:text-lg font-semibold text-white">{project.recentSubmissions?.length || 0}</p>
                         </div>
                       </div>
                     </div>
@@ -523,7 +522,7 @@ export default function ProducerDashboard() {
                       </p>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                      {selectedProject.recentSubmissions.map((submission, index) => (
+                      {selectedProject.recentSubmissions && selectedProject.recentSubmissions.map((submission, index) => (
                         <button
                           key={submission.id}
                           onClick={() => setSelectedSubmission(submission)}
@@ -589,12 +588,6 @@ export default function ProducerDashboard() {
                       : "Create a project to start receiving submissions."}
                   </p>
                   
-                  {/* Add the Upload component here */}
-                  <div className="max-w-md mx-auto mb-6 border border-white/10 rounded-lg p-4">
-                    <h3 className="text-white font-semibold mb-3">Upload a File</h3>
-                    <Upload />
-                  </div>
-                  
                   <Link
                     href="/producer/projects/new"
                     className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
@@ -624,7 +617,7 @@ export default function ProducerDashboard() {
                   </p>
                   
                   <div className="space-y-3">
-                    {Object.entries(selectedSubmission.analysis).map(([key, value]) => (
+                    {selectedSubmission.analysis && Object.entries(selectedSubmission.analysis).map(([key, value]) => (
                       <div key={key} className="relative pt-1">
                         <div className="flex items-center justify-between">
                           <div className="text-xs text-gray-400 capitalize mb-1">

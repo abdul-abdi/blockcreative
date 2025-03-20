@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createAppKit } from '@reown/appkit/react'
 import { mainnet, arbitrum, lisk, liskSepolia } from '@reown/appkit/networks'
 import React, { type ReactNode, createContext, useContext } from 'react'
-import { cookieToInitialState, WagmiProvider, type Config } from 'wagmi'
+import { cookieToInitialState, WagmiProvider, type Config, type State } from 'wagmi'
 import { SessionProvider } from 'next-auth/react'
 
 // Set up queryClient
@@ -54,7 +54,16 @@ function ContextProvider({
   cookies: string | null;
   dbConnected?: boolean;
 }) {
-  const initialState = cookieToInitialState(wagmiAdapter.wagmiConfig as Config, cookies)
+  // For Wagmi state, don't set a default state as it expects a specific structure with Maps
+  let initialState = undefined;
+  
+  try {
+    if (cookies && cookies.trim() !== '') {
+      initialState = cookieToInitialState(wagmiAdapter.wagmiConfig as Config, cookies);
+    }
+  } catch (error) {
+    console.error('Error parsing cookies for Wagmi state:', error);
+  }
 
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig as Config} initialState={initialState}>

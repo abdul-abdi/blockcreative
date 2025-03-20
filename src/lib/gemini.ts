@@ -1,5 +1,24 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
+// Simple in-memory cache for AI results
+// In production, consider Redis or another distributed cache
+const analysisCache: {
+  [scriptId: string]: {
+    result: ScriptAnalysisResult,
+    timestamp: number,
+    expiresAt: number
+  }
+} = {};
+
+// Default cache TTL (Time To Live) - 24 hours
+const DEFAULT_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+// Maximum retry attempts for AI requests
+const MAX_RETRY_ATTEMPTS = 3;
+
+// Base delay for exponential backoff (in ms)
+const BASE_RETRY_DELAY = 1000;
+
 /**
  * Creates a Gemini Pro client for text generation
  * @returns Gemini Pro client or null if API key is missing
@@ -27,11 +46,14 @@ export function createGeminiProClient() {
 }
 
 /**
- * Generates content using Gemini Pro
+ * Generates content using Gemini Pro with retry logic
  * @param prompt The prompt to generate content from
  * @returns Generated content or error message
  */
-export async function generateContent(prompt: string): Promise<{ success: boolean; content?: string; error?: string }> {
+export async function generateContent(
+  prompt: string,
+  retryAttempt = 0
+): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
     const gemini = createGeminiProClient();
     
@@ -47,7 +69,20 @@ export async function generateContent(prompt: string): Promise<{ success: boolea
       content: text
     };
   } catch (error) {
-    console.error('Content generation error:', error);
+    console.error(`Content generation error (attempt ${retryAttempt + 1}):`, error);
+    
+    // Implement exponential backoff for retries
+    if (retryAttempt < MAX_RETRY_ATTEMPTS) {
+      const delay = BASE_RETRY_DELAY * Math.pow(2, retryAttempt);
+      console.log(`Retrying in ${delay}ms...`);
+      
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(generateContent(prompt, retryAttempt + 1));
+        }, delay);
+      });
+    }
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error generating content'
@@ -119,16 +154,88 @@ export interface ScriptAnalysisResult {
 }
 
 /**
- * Analyzes a script using Google's Gemini API
+ * Check if a cached analysis exists and is valid
+ * @param scriptId ID of the script
+ * @param maxAgeSecs Maximum age in seconds for cache validity
+ * @returns Cached analysis or null if not found or expired
+ */
+export function getCachedAnalysis(
+  scriptId: string,
+  maxAgeSecs = 86400 // 24 hours default
+): ScriptAnalysisResult | null {
+  const cached = analysisCache[scriptId];
+  
+  if (!cached) {
+    return null;
+  }
+  
+  const maxAgeMs = maxAgeSecs * 1000;
+  const now = Date.now();
+  
+  // Check if cache has expired
+  if (now > cached.expiresAt || now - cached.timestamp > maxAgeMs) {
+    // Delete expired cache entry
+    delete analysisCache[scriptId];
+    return null;
+  }
+  
+  return cached.result;
+}
+
+/**
+ * Stores an analysis result in the cache
+ * @param scriptId ID of the script
+ * @param result Analysis result
+ * @param ttlMs Time to live in milliseconds
+ */
+export function cacheAnalysisResult(
+  scriptId: string,
+  result: ScriptAnalysisResult,
+  ttlMs = DEFAULT_CACHE_TTL
+): void {
+  const now = Date.now();
+  
+  analysisCache[scriptId] = {
+    result,
+    timestamp: now,
+    expiresAt: now + ttlMs
+  };
+}
+
+/**
+ * Analyzes a script using Google's Gemini API with caching and retry logic
  * @param scriptContent The content of the script to analyze
- * @param requirements Optional project requirements to consider
+ * @param options Additional options for analysis
  * @returns Script analysis result
  */
 export async function analyzeScript(
   scriptContent: string,
-  requirements: string[] = []
+  options: {
+    scriptId?: string;
+    requirements?: string[];
+    useCache?: boolean;
+    cacheTtlSecs?: number;
+    retryAttempt?: number;
+  } = {}
 ): Promise<ScriptAnalysisResult> {
+  const {
+    scriptId,
+    requirements = [],
+    useCache = true,
+    cacheTtlSecs = 86400,
+    retryAttempt = 0
+  } = options;
+  
   try {
+    // Check cache if scriptId is provided and caching is enabled
+    if (scriptId && useCache) {
+      const cachedResult = getCachedAnalysis(scriptId, cacheTtlSecs);
+      if (cachedResult) {
+        console.log(`Using cached analysis for script ${scriptId}`);
+        return cachedResult;
+      }
+    }
+    
     // Initialize the model
     const model = genAI.getGenerativeModel({ model: 'gemini-pro', ...modelConfig });
     
@@ -188,9 +295,29 @@ export async function analyzeScript(
     
     const analysis = JSON.parse(jsonString) as ScriptAnalysisResult;
     
+    // Cache the result if scriptId is provided
+    if (scriptId) {
+      cacheAnalysisResult(scriptId, analysis, cacheTtlSecs * 1000);
+    }
+    
     return analysis;
   } catch (error) {
-    console.error('Error analyzing script with Gemini:', error);
+    console.error(`Error analyzing script with Gemini (attempt ${retryAttempt + 1}):`, error);
+    
+    // Implement exponential backoff for retries
+    if (retryAttempt < MAX_RETRY_ATTEMPTS) {
+      const delay = BASE_RETRY_DELAY * Math.pow(2, retryAttempt);
+      console.log(`Retrying script analysis in ${delay}ms...`);
+      
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(analyzeScript(scriptContent, {
+            ...options,
+            retryAttempt: retryAttempt + 1
+          }));
+        }, delay);
+      });
+    }
     
     // Return a default error response
     return {
@@ -212,4 +339,156 @@ export async function analyzeScript(
       overall_score: 0
     };
   }
-} 
+}
+
+/**
+ * Synopsis generation result interface
+ */
+export interface SynopsisResult {
+  title_suggestion?: string;
+  logline: string;
+  synopsis: string;
+  target_audience?: string[];
+  tone: string;
+  themes: string[];
+}
+
+/**
+ * Generates a synopsis for a script using Google's Gemini API
+ * @param scriptContent The content of the script to generate synopsis for
+ * @param options Additional options for generation
+ * @returns Synopsis generation result
+ */
+export async function generateSynopsis(
+  scriptContent: string,
+  options: {
+    scriptId?: string;
+    useCache?: boolean;
+    cacheTtlSecs?: number;
+    retryAttempt?: number;
+    existingTitle?: string;
+  } = {}
+): Promise<{ success: boolean; result?: SynopsisResult; error?: string }> {
+  const {
+    scriptId,
+    useCache = true,
+    cacheTtlSecs = 86400,
+    retryAttempt = 0,
+    existingTitle
+  } = options;
+  
+  try {
+    // For caching implementation later if needed
+    // We'd create a synopsisCache similar to analysisCache
+    
+    // Initialize the model
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro', ...modelConfig });
+    
+    // Create the prompt for synopsis generation - optimized for free Gemini API
+    const titleContext = existingTitle 
+      ? `The current title is "${existingTitle}". Only suggest a new title if you have a substantially better alternative.`
+      : `Suggest an engaging title that captures the essence of the script.`;
+    
+    const prompt = `
+      You are an expert script consultant specializing in creating marketable synopses for film and TV projects.
+      
+      Please create a synopsis package for the following script. Be concise and focus on the most compelling elements.
+      ${titleContext}
+      
+      Respond in this JSON format:
+      {
+        "title_suggestion": "Suggested title, or empty if the current title works well",
+        "logline": "A one-sentence summary that hooks the reader (25-35 words)",
+        "synopsis": "A compelling 150-200 word summary highlighting the main plot, characters, and hooks",
+        "tone": "The emotional tone/mood of the story (e.g., 'darkly comedic', 'suspenseful drama')",
+        "themes": ["3-5 main themes explored in the script"]
+      }
+      
+      Script Content:
+      ${scriptContent.substring(0, 15000)}  // Limit content size for free API
+    `;
+    
+    // Handle retries with exponential backoff (reusing the pattern from analyzeScript)
+    const generateWithRetry = async (attempt: number): Promise<SynopsisResult> => {
+      try {
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        
+        // Extract JSON from the response
+        let synopsisData: SynopsisResult;
+        
+        try {
+          // Try to extract JSON if it's embedded in other text
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          const jsonString = jsonMatch ? jsonMatch[0] : responseText;
+          synopsisData = JSON.parse(jsonString);
+        } catch (parseError) {
+          console.error('Failed to parse JSON response:', parseError);
+          
+          // Fallback: Try to extract components manually
+          const loglineMatch = responseText.match(/logline[^:]*:(.*?)(?=synopsis:|$)/i);
+          const synopsisMatch = responseText.match(/synopsis[^:]*:(.*?)(?=tone:|$)/i);
+          const toneMatch = responseText.match(/tone[^:]*:(.*?)(?=themes:|$)/i);
+          const themesMatch = responseText.match(/themes[^:]*:(.*?)(?=\}|$)/i);
+          
+          synopsisData = {
+            logline: loglineMatch ? loglineMatch[1].trim() : 'No logline generated',
+            synopsis: synopsisMatch ? synopsisMatch[1].trim() : 'No synopsis generated',
+            tone: toneMatch ? toneMatch[1].trim() : 'Not specified',
+            themes: themesMatch ? extractListItems(themesMatch[1]) : ['Theme extraction failed']
+          };
+        }
+        
+        return synopsisData;
+      } catch (error) {
+        console.error(`Synopsis generation error (attempt ${attempt + 1}):`, error);
+        
+        // Implement retry with exponential backoff
+        if (attempt < MAX_RETRY_ATTEMPTS) {
+          const delay = BASE_RETRY_DELAY * Math.pow(2, attempt);
+          console.log(`Retrying synopsis generation in ${delay}ms...`);
+          
+          return new Promise((resolve) => {
+            setTimeout(() => {
+              resolve(generateWithRetry(attempt + 1));
+            }, delay);
+          });
+        }
+        
+        throw error;
+      }
+    };
+    
+    const synopsisResult = await generateWithRetry(retryAttempt);
+    
+    return {
+      success: true,
+      result: synopsisResult
+    };
+  } catch (error) {
+    console.error('Synopsis generation error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error generating synopsis'
+    };
+  }
+}
+
+// Helper function to extract list items (reusing from ai.ts)
+function extractListItems(text: string): string[] {
+  if (!text) return [];
+  
+  // Try to extract numbered or bulleted list items
+  const listItemRegex = /(?:^|\n)(?:\d+[.)]|\*|\-|\•)\s*([^\n]+)/g;
+  const matches = Array.from(text.matchAll(listItemRegex));
+  
+  if (matches.length > 0) {
+    return matches.map(match => match[1].trim());
+  }
+  
+  // If no list items found, split by commas or newlines
+  return text
+    .split(/,|\n/)
+    .map(item => item.trim())
+    .filter(item => item.length > 0);
+}

@@ -42,16 +42,73 @@ export default function SignUp() {
   const [error, setError] = useState<string | null>(null);
   const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
   
-  // Redirect if already connected and role is selected
+  // Check URL for reset parameter
   useEffect(() => {
-    if (isConnected && address && selectedRole) {
-      // Store user information
-      storeUserInfo(address, selectedRole);
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('reset') === 'true') {
+      // Clear localStorage and cookies for a fresh start
+      localStorage.clear();
+      document.cookie.split(';').forEach(cookie => {
+        const [name] = cookie.trim().split('=');
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      });
+      console.log('Auth state reset via URL parameter');
+    }
+  }, []);
+  
+  // Check if already authenticated with a role at initial load
+  useEffect(() => {
+    const storedRole = localStorage.getItem('userRole');
+    const storedWallet = localStorage.getItem('walletAddress');
+    const authCookie = document.cookie.includes('appkit.session=') || document.cookie.includes('next-auth.session-token=');
+    const onboardingCompleted = localStorage.getItem('onboardingCompleted');
+    
+    // If we're already authenticated with a role, redirect to dashboard
+    if ((storedRole && (storedWallet || authCookie)) || (isConnected && address)) {
+      const role = storedRole || determineUserRole(address || '');
+      
+      // If onboarding is not completed, redirect to onboarding
+      if (onboardingCompleted !== 'true') {
+        console.log(`User authenticated as ${role} but onboarding not completed, redirecting to onboarding`);
+        // Add a timestamp to prevent caching issues
+        const timestamp = Date.now();
+        const onboardingPath = `/${role}/onboarding?ts=${timestamp}`;
+        
+        setIsLoading(true);
+        // Use location.href for a full page refresh
+        window.location.href = onboardingPath;
+      } else {
+        console.log(`User already authenticated as ${role}, redirecting to dashboard`);
+        // Add a timestamp to prevent caching issues
+        const timestamp = Date.now();
+        const dashboardPath = `/${role}/dashboard?ts=${timestamp}`;
+        
+        setIsLoading(true);
+        // Use location.href for a full page refresh
+        window.location.href = dashboardPath;
+      }
+    }
+  }, [isConnected, address]);
+  
+  // Redirect if already connected
+  useEffect(() => {
+    if (isConnected && address) {
+      // If a role is selected, use it - otherwise determine from address
+      const role = selectedRole || determineUserRole(address);
+      storeUserInfo(address, role);
       
       // Register user in MongoDB
-      registerUser(address, selectedRole);
+      registerUser(address, role);
     }
   }, [isConnected, address, selectedRole, router]);
+  
+  // Simple function to determine user role based on address
+  const determineUserRole = (address: string): string => {
+    // For demo purposes, assign roles based on last character of address
+    const lastChar = address.slice(-1).toLowerCase();
+    const isEven = parseInt(lastChar, 16) % 2 === 0;
+    return isEven ? 'writer' : 'producer';
+  };
 
   // Register user in MongoDB
   const registerUser = async (address: string, role: string) => {
@@ -204,13 +261,14 @@ export default function SignUp() {
     }
   };
 
-  // Store user information in localStorage
+  // Store user information in localStorage and cookies
   const storeUserInfo = (address: string, role: string) => {
     localStorage.setItem('userRole', role);
     localStorage.setItem('walletAddress', address);
+    document.cookie = `userRole=${role}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+    document.cookie = `walletAddress=${address}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
     
     // For social auth users, we'll use a default name initially
-    // This would be updated when we get the actual user data from social providers
     if (!localStorage.getItem('userName')) {
       localStorage.setItem('userName', role === 'writer' ? 'Writer User' : 'Producer User');
     }
@@ -228,12 +286,26 @@ export default function SignUp() {
     
     try {
       setIsLoading(true);
+      setError(null);
       // Store role before connecting
       localStorage.setItem('userRole', selectedRole);
+      document.cookie = `userRole=${selectedRole}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+      
+      // Open AppKit modal for wallet connection
       await appKitModal.open();
+      
+      // Add a delay to wait for wallet connection
+      setTimeout(() => {
+        if (!isConnected) {
+          setIsLoading(false);
+        }
+      }, 3000);
     } catch (error) {
       console.error('Connection error:', error);
       setIsLoading(false);
+      
+      // Show error message to user
+      setError(error instanceof Error ? error.message : 'Failed to connect wallet. Please try again.');
     }
   };
 
@@ -246,12 +318,26 @@ export default function SignUp() {
     
     try {
       setIsLoading(true);
+      setError(null);
       // Store role before connecting
       localStorage.setItem('userRole', selectedRole);
+      document.cookie = `userRole=${selectedRole}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+      
+      // Open AppKit modal for email/social login
       appKitModal.open({ view: 'Connect' });
+      
+      // Add a delay to wait for social auth
+      setTimeout(() => {
+        if (!document.cookie.includes('appkit.session=')) {
+          setIsLoading(false);
+        }
+      }, 3000);
     } catch (error) {
       console.error('Email/social login error:', error);
       setIsLoading(false);
+      
+      // Show error message to user
+      setError(error instanceof Error ? error.message : 'Failed to authenticate. Please try again.');
     }
   };
 

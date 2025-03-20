@@ -63,6 +63,27 @@ export default function ProducerOnboarding() {
   const [redirectTimer, setRedirectTimer] = useState<number | null>(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  // Circuit breaker for onboarding loops
+  useEffect(() => {
+    const onboardingAttempts = parseInt(localStorage.getItem('onboardingAttempts') || '0');
+    
+    if (onboardingAttempts > 5) {
+      // Too many onboarding attempts, something is wrong
+      console.error('Too many onboarding attempts detected, redirecting to signup with reset');
+      router.push('/signup?reset=true');
+      return;
+    }
+    
+    localStorage.setItem('onboardingAttempts', (onboardingAttempts + 1).toString());
+    
+    // Clear onboarding attempts when completed successfully
+    return () => {
+      if (localStorage.getItem('onboardingCompleted') === 'true') {
+        localStorage.removeItem('onboardingAttempts');
+      }
+    };
+  }, [router]);
+
   // Redirect if not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {

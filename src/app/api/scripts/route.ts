@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const token = await getToken({ req: request as any });
 
     // Build filter
-    let filter: any = {};
+    const filter: any = {};
     
     // If writer_id is provided, filter by writer
     if (writer_id) {

@@ -1,17 +1,17 @@
 import { initBlockchain } from './blockchain';
-import deployContracts from './deploy-contracts';
 
 // Only import dotenv on the server side
 if (typeof window === 'undefined') {
-  // Server-side only import
-  const dotenv = require('dotenv');
-  dotenv.config({ path: '.env.local' });
+  // Use dynamic import instead of require
+  import('dotenv').then(dotenv => {
+    dotenv.config({ path: '.env.local' });
+  });
 }
 
 /**
  * Checks if smart contracts are deployed by checking environment variables
  */
-function areContractsDeployed(): boolean {
+export function areContractsDeployed(): boolean {
   // Get contract addresses (different method based on environment)
   const getContractAddresses = () => {
     if (typeof window !== 'undefined') {
@@ -55,7 +55,6 @@ function areContractsDeployed(): boolean {
 /**
  * Startup function to initialize the application
  * - Checks if contracts are deployed
- * - Deploys contracts if needed and AUTO_DEPLOY_CONTRACTS is true (server-side only)
  * - Initializes blockchain connection
  */
 export async function startup(): Promise<boolean> {
@@ -65,24 +64,25 @@ export async function startup(): Promise<boolean> {
   const contractsDeployed = areContractsDeployed();
   console.log(`Contracts deployed: ${contractsDeployed}`);
 
-  // If contracts are not deployed and AUTO_DEPLOY_CONTRACTS is true, deploy them
-  // This can only happen on the server side
-  if (!contractsDeployed && process.env.AUTO_DEPLOY_CONTRACTS === 'true' && typeof window === 'undefined') {
-    console.log('Auto-deploying contracts...');
-    try {
-      await deployContracts();
-      console.log('Contracts deployed successfully');
-    } catch (error) {
-      console.error('Error deploying contracts:', error);
-      return false;
+  // If contracts are not deployed, show warning but continue
+  if (!contractsDeployed) {
+    if (typeof window === 'undefined') {
+      console.warn('Contracts not deployed. Deploy contracts manually using the deployment script.');
+    } else {
+      console.warn('Contracts not deployed. Please contact administrator.');
     }
-  } else if (!contractsDeployed && typeof window !== 'undefined') {
-    console.log('Contracts not deployed, but deployment can only occur on the server side');
-    // In a real app, you might want to show a message to the user or redirect to a setup page
   }
 
   // Initialize blockchain connection
   try {
+    // In browser environment, log RPC URL for debugging (without sensitive details)
+    if (typeof window !== 'undefined') {
+      const rpcUrl = typeof process.env.NEXT_PUBLIC_LISK_RPC_URL === 'string' 
+        ? `${process.env.NEXT_PUBLIC_LISK_RPC_URL.split('://')[0]}://***` 
+        : 'Not configured';
+      console.log(`Connecting to blockchain using RPC URL: ${rpcUrl}`);
+    }
+    
     const blockchainInitialized = await initBlockchain();
     if (!blockchainInitialized) {
       console.error('Failed to initialize blockchain connection');
@@ -91,7 +91,8 @@ export async function startup(): Promise<boolean> {
     console.log('Blockchain connection initialized successfully');
     return true;
   } catch (error) {
-    console.error('Error initializing blockchain connection:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`Error initializing blockchain connection: ${errorMessage}`);
     return false;
   }
 }

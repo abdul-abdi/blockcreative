@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build filter query
-    let filter: any = {};
+    const filter: any = {};
     if (role) {
       filter.role = role;
     }

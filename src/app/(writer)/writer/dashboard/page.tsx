@@ -17,7 +17,6 @@ import DashboardLayout from '@/components/DashboardLayout';
 import AIAnalysisChart from '@/components/AIAnalysisChart';
 import { useSession } from 'next-auth/react';
 import { useUser } from '@/lib/hooks/useUser';
-import Upload from '../../../upload';
 
 // Define types for our data
 interface Submission {
@@ -165,7 +164,7 @@ export default function WriterDashboard() {
           const submissionsData = await submissionsResponse.json();
           if (submissionsData.submissions && Array.isArray(submissionsData.submissions)) {
             setActiveSubmissions(submissionsData.submissions.slice(0, 5));
-            if (submissionsData.submissions.length > 0) {
+            if (submissionsData.submissions && submissionsData.submissions.length > 0) {
               setSelectedSubmission(submissionsData.submissions[0]);
             }
           }
@@ -332,18 +331,17 @@ export default function WriterDashboard() {
                   </Link>
                 </div>
               ) : (
-                <div className="text-center p-6 border border-dashed border-white/10 rounded-lg">
-                  <p className="text-gray-400 mb-4">You don't have any active submissions yet.</p>
+                <div className="text-center py-8 space-y-4">
+                  <p className="text-gray-400">No active submissions yet</p>
                   
                   <div className="space-y-4">
-                    <Upload />
                     <div className="mt-4">
                       <Link
                         href="/writer/submit"
-                        className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors inline-flex items-center"
+                        className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
                       >
-                        <PlusIcon className="w-4 h-4 mr-2" />
-                        View submission guidelines
+                        <DocumentTextIcon className="w-5 h-5" />
+                        <span>Submit a Script</span>
                       </Link>
                     </div>
                   </div>
@@ -436,14 +434,18 @@ export default function WriterDashboard() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2 mb-4">
-                      {project.requirements.map((req, index) => (
+                      {project.requirements && Array.isArray(project.requirements) ? project.requirements.map((req, index) => (
                         <span
                           key={index}
                           className="px-2 py-1 bg-white/5 rounded-full text-xs text-gray-300"
                         >
                           {req}
                         </span>
-                      ))}
+                      )) : project.requirements && typeof project.requirements === 'string' ? (
+                        <span className="px-2 py-1 bg-white/5 rounded-full text-xs text-gray-300">
+                          {project.requirements}
+                        </span>
+                      ) : null}
                     </div>
                     <Link
                       href={`/writer/projects/${project.id}`}

@@ -13,22 +13,43 @@ export default function SignIn() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  // Redirect if already connected
+  // Check URL for reset parameter
   useEffect(() => {
-    if (isConnected && address) {
-      // In a real application, you would likely check the user role from your backend
-      // For now, let's check localStorage or default to writer
-      const userRole = localStorage.getItem('userRole') || determineUserRole(address);
-      
-      // Add a short delay to ensure smooth transition
-      setIsLoading(true);
-      setTimeout(() => {
-        router.push(`/${userRole}/dashboard`);
-      }, 500);
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('reset') === 'true') {
+      // Clear localStorage and cookies for a fresh start
+      localStorage.clear();
+      document.cookie.split(';').forEach(cookie => {
+        const [name] = cookie.trim().split('=');
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      });
+      console.log('Auth state reset via URL parameter');
     }
-  }, [isConnected, address, router]);
-
+  }, []);
+  
+  // Check if already authenticated with a role at initial load
+  useEffect(() => {
+    const storedRole = localStorage.getItem('userRole');
+    const storedWallet = localStorage.getItem('walletAddress');
+    const authCookie = document.cookie.includes('appkit.session=') || document.cookie.includes('next-auth.session-token=');
+    
+    // If we're already authenticated with a role, redirect to dashboard
+    if ((storedRole && (storedWallet || authCookie)) || (isConnected && address)) {
+      const role = storedRole || determineUserRole(address || '');
+      console.log(`User already authenticated as ${role}, redirecting to dashboard`);
+      
+      // Add a timestamp to prevent caching issues
+      const timestamp = Date.now();
+      const dashboardPath = `/${role}/dashboard?ts=${timestamp}`;
+      
+      setIsLoading(true);
+      // Use location.href for a full page refresh to avoid any routing issues
+      window.location.href = dashboardPath;
+    }
+  }, [isConnected, address]);
+  
   // Simple function to determine user role based on address
   // In a real app, this would likely be a backend call
   const determineUserRole = (address: string) => {
@@ -41,6 +62,8 @@ export default function SignIn() {
     // Store role and wallet info in localStorage for future reference
     localStorage.setItem('userRole', role);
     localStorage.setItem('walletAddress', address);
+    document.cookie = `userRole=${role}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+    document.cookie = `walletAddress=${address}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
     
     // For social auth users, we'll use a default name initially
     // This would be updated when we get the actual user data from social providers
@@ -55,10 +78,19 @@ export default function SignIn() {
   const handleWalletConnect = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       await appKitModal.open();
+      
+      // Add a delay to wait for wallet connection
+      setTimeout(() => {
+        if (!isConnected) {
+          setIsLoading(false);
+        }
+      }, 3000);
     } catch (error) {
       console.error('Connection error:', error);
       setIsLoading(false);
+      setError(error instanceof Error ? error.message : 'Failed to connect wallet');
     }
   };
 
@@ -66,10 +98,19 @@ export default function SignIn() {
   const handleEmailSocialConnect = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       await appKitModal.open({ view: 'Connect' });
+      
+      // Add a delay to wait for social auth
+      setTimeout(() => {
+        if (!document.cookie.includes('appkit.session=')) {
+          setIsLoading(false);
+        }
+      }, 3000);
     } catch (error) {
       console.error('Email/social login error:', error);
       setIsLoading(false);
+      setError(error instanceof Error ? error.message : 'Failed to authenticate with email/social');
     }
   };
 
@@ -103,6 +144,12 @@ export default function SignIn() {
               Sign in to continue your creative journey
             </p>
           </motion.div>
+
+          {error && (
+            <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4 text-red-200 text-sm">
+              {error}
+            </div>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}

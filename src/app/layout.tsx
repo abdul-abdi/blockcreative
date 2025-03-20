@@ -1,16 +1,18 @@
+import './globals.css';
+import { Inter } from 'next/font/google';
+import { Suspense } from 'react';
+import ClientInitializer from '@/components/ClientInitializer';
+import BlockchainInitializer from '@/components/BlockchainInitializer';
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { headers } from 'next/headers';
 import ContextProvider from '@/context';
 import connectToDatabase from '@/lib/mongodb';
-import ClientInitializer from '@/components/ClientInitializer';
+import ErrorBoundaryWrapper from '@/components/ErrorBoundaryWrapper';
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "BlockCreative",
-  description: "Connect scriptwriters with producers securely using blockchain technology",
+  title: 'BlockCreative',
+  description: 'Connect writers with producers through blockchain',
 };
 
 export default async function RootLayout({
@@ -18,21 +20,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Get headers for cookie handling
-  const headersObj = await headers();
-  const cookies = headersObj.get('cookie');
-  
-  // Connect to MongoDB on server-side
+  // Connect to database and check connection status
   let dbConnected = false;
-  if (typeof window === 'undefined') {
-    try {
-      await connectToDatabase();
-      console.log('Database connected successfully');
-      dbConnected = true;
-    } catch (error) {
-      console.error('Database connection error:', error);
-      console.log('Continuing without database connection - will use mock data for development');
-    }
+  try {
+    await connectToDatabase();
+    dbConnected = true;
+  } catch (e) {
+    console.error('Failed to connect to database in layout:', e);
   }
 
   return (
@@ -43,10 +37,16 @@ export default async function RootLayout({
         <link rel="icon" href="/favicon.ico" />
       </head>
       <body className={`${inter.className} min-h-screen bg-black antialiased`}>
-        <ContextProvider cookies={cookies} dbConnected={dbConnected}>
-          {/* Client-side component for blockchain initialization */}
-          <ClientInitializer />
-          {children}
+        <ContextProvider cookies="" dbConnected={dbConnected}>
+          <ErrorBoundaryWrapper>
+            <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-black">
+              <div className="w-16 h-16 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
+            </div>}>
+              <ClientInitializer />
+              <BlockchainInitializer />
+              {children}
+            </Suspense>
+          </ErrorBoundaryWrapper>
         </ContextProvider>
       </body>
     </html>

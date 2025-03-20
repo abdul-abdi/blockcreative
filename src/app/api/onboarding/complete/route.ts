@@ -9,6 +9,10 @@ export async function POST(request: NextRequest) {
     // Connect to the database
     await connectToDatabase();
     
+    // Parse body early to get role information if available
+    const body = await request.json().catch(() => ({}));
+    const { role } = body;
+    
     // Get authentication via multiple methods
     const token = await getToken({ req: request as any });
     
@@ -19,34 +23,41 @@ export async function POST(request: NextRequest) {
       user = await User.findOne({ id: token.id });
     }
     
-    // If no user found by token, try wallet address from headers or cookies
+    // If no user found by token, try wallet address from headers, cookies or body
     if (!user) {
-      const walletAddress = request.headers.get('x-wallet-address') || 
-                           request.cookies.get('walletAddress')?.value;
+      const walletAddress = 
+        request.headers.get('x-wallet-address') || 
+        request.cookies.get('walletAddress')?.value || 
+        body.walletAddress;
       
       if (walletAddress) {
         console.log('Looking up user by wallet address:', walletAddress);
-        user = await User.findOne({ address: walletAddress });
+        const query = role ? { address: walletAddress, role } : { address: walletAddress };
+        user = await User.findOne(query);
       }
     }
     
-    // If still no user, try to get role from request body and wallet from cookies
+    // Check for AppKit authentication
     if (!user) {
       try {
-        const body = await request.json();
-        const { role } = body;
+        // Check for AppKit authentication signals
+        const appKitSession = request.cookies.get('appkit.session')?.value;
+        const userEmail = request.cookies.get('userEmail')?.value;
         
-        const walletAddress = request.cookies.get('walletAddress')?.value;
-        
-        if (role && walletAddress) {
-          console.log(`Looking up ${role} by wallet address:`, walletAddress);
-          user = await User.findOne({ 
-            address: walletAddress,
-            role: role
-          });
+        if ((appKitSession || userEmail) && role) {
+          // We have AppKit session indicators, try to find the user
+          const walletAddress = body.walletAddress || request.headers.get('x-wallet-address');
+          
+          if (walletAddress) {
+            console.log(`Looking up ${role} by wallet address with AppKit auth:`, walletAddress);
+            user = await User.findOne({ 
+              address: walletAddress,
+              role: role
+            });
+          }
         }
-      } catch (err) {
-        console.error('Error parsing request body:', err);
+      } catch (appKitError) {
+        console.error('Error checking AppKit authentication:', appKitError);
       }
     }
     
@@ -62,7 +73,16 @@ export async function POST(request: NextRequest) {
     user.onboarding_completed = true;
     user.onboarding_step = 5; // Completed all steps
     
-    await user.save();
+    try {
+      await user.save();
+      console.log(`Onboarding marked complete for ${user.role} (${user.id})`);
+    } catch (saveError) {
+      console.error('Error saving onboarding completion status:', saveError);
+      return NextResponse.json({ 
+        error: 'Database error while updating onboarding status',
+        message: saveError instanceof Error ? saveError.message : 'Unknown database error'
+      }, { status: 500 });
+    }
     
     // Create response with cookies for persistence
     const response = NextResponse.json({
@@ -79,20 +99,23 @@ export async function POST(request: NextRequest) {
     response.cookies.set('userRole', user.role, { 
       path: '/',
       maxAge: 60 * 60 * 24 * 30, // 30 days
-      sameSite: 'lax'
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
     });
     
     response.cookies.set('onboardingCompleted', 'true', {
       path: '/',
       maxAge: 60 * 60 * 24 * 30, // 30 days
-      sameSite: 'lax'
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production'
     });
     
     if (user.address) {
       response.cookies.set('walletAddress', user.address, {
         path: '/',
         maxAge: 60 * 60 * 24 * 30, // 30 days
-        sameSite: 'lax'
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production'
       });
     }
     

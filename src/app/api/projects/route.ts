@@ -4,6 +4,8 @@ import { Project, User } from '@/models';
 import { getToken } from 'next-auth/jwt';
 import { createProject } from '@/lib/blockchain';
 import crypto from 'crypto';
+import { ENV } from '@/lib/env-config';
+import { trackProjectCreation } from '@/lib/project-blockchain-service';
 
 // GET /api/projects - List all projects or filtered list
 export async function GET(request: NextRequest) {
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build filter
-    let filter: any = {};
+    const filter: any = {};
     if (status) {
       filter.status = status;
     }
@@ -118,13 +120,27 @@ export async function POST(request: NextRequest) {
       requirements: body.requirements || [],
       status: 'open',
       created_at: new Date(),
-      contract_address: '', // Will be set when contract is deployed
+      contract_address: ENV.PROJECT_REGISTRY_ADDRESS || '', // Set contract address
       project_hash: projectHash,
       escrow_funded: false,
-      escrow_transaction_hash: ''
+      escrow_transaction_hash: '',
+      onChain: false, // Initially false, will be set to true when confirmed
+      blockchain_data: {
+        projectId: blockchainResult.projectId,
+        transactionHash: blockchainResult.transactionHash,
+        gasUsed: blockchainResult.gasUsed,
+        confirmed: false
+      }
     });
 
     await newProject.save();
+    
+    // Start tracking the blockchain transaction
+    trackProjectCreation(
+      newProject.id,
+      blockchainResult.transactionHash,
+      blockchainResult.projectId
+    ).catch(error => console.error('Failed to track project creation:', error));
 
     return NextResponse.json({
       message: 'Project created successfully',

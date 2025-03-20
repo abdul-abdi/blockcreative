@@ -2,19 +2,31 @@ import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// Connection cache
-let cachedConnection: { 
-  client: typeof mongoose | null; 
-  promise: Promise<typeof mongoose> | null 
-} = {
-  client: null,
-  promise: null
-};
+// Define a proper interface for the global cache
+interface MongooseCache {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+}
 
+// Add the mongoose property to the NodeJS global type
+declare global {
+  var mongoose: MongooseCache;
+}
+
+// Initialize the global cache if not already done
+if (!global.mongoose) {
+  global.mongoose = { conn: null, promise: null };
+}
+
+/**
+ * Connect to MongoDB with optimized connection pooling for serverless environments
+ * @returns Mongoose instance
+ */
 async function connectToDatabase(): Promise<typeof mongoose> {
-  // If we already have a connection, return it
-  if (cachedConnection.client) {
-    return cachedConnection.client;
+  // If we already have a connection and it's connected, return it
+  if (global.mongoose.conn && mongoose.connection.readyState === 1) {
+    console.log('Using existing MongoDB connection');
+    return global.mongoose.conn;
   }
 
   // Check if MongoDB URI is defined
@@ -23,41 +35,88 @@ async function connectToDatabase(): Promise<typeof mongoose> {
   }
 
   // If a connection is being established, wait for it
-  if (!cachedConnection.promise) {
-    const opts = {
-      bufferCommands: false,
-      serverSelectionTimeoutMS: 5000, // 5 seconds timeout for server selection
-      connectTimeoutMS: 10000, // 10 seconds timeout for initial connection
-      socketTimeoutMS: 45000, // 45 seconds timeout for socket operations
-    };
-
-    // Create new connection promise
-    cachedConnection.promise = mongoose.connect(MONGODB_URI as string, opts);
+  if (global.mongoose.promise) {
+    console.log('Waiting for existing MongoDB connection attempt to complete');
+    try {
+      const conn = await global.mongoose.promise;
+      global.mongoose.conn = conn;
+      return conn;
+    } catch (error) {
+      console.error('Previous MongoDB connection attempt failed, retrying:', error);
+      global.mongoose.promise = null;
+    }
   }
 
+  // Set up configuration options optimized for serverless
+  const opts = {
+    bufferCommands: false,
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 15000,
+    socketTimeoutMS: 45000,
+    maxPoolSize: 10,      // Reduced pool size for serverless
+    minPoolSize: 1,
+    maxIdleTimeMS: 30000, // Shorter idle time for serverless
+    heartbeatFrequencyMS: 10000,
+    retryWrites: true,
+    family: 4,
+    autoIndex: process.env.NODE_ENV !== 'production',
+    autoCreate: process.env.NODE_ENV !== 'production',
+  };
+
+  console.log('Establishing new MongoDB connection...');
+  
+  // Create new connection promise
+  global.mongoose.promise = mongoose.connect(MONGODB_URI, opts);
+  
   try {
     // Wait for the connection
-    cachedConnection.client = await cachedConnection.promise;
+    const conn = await global.mongoose.promise;
+    global.mongoose.conn = conn;
     console.log('MongoDB connected successfully');
-  } catch (e) {
-    // On error, clear the connection promise so we can retry
-    cachedConnection.promise = null;
-    console.error('MongoDB connection error:', e);
-    throw e;
+    
+    // Set up connection event handlers
+    setupConnectionHandlers();
+    
+    return conn;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    global.mongoose.promise = null;
+    throw error;
   }
+}
 
-  // Handle connection events
+/**
+ * Set up MongoDB connection event handlers
+ */
+function setupConnectionHandlers() {
+  // Remove any existing listeners to prevent duplicates
+  mongoose.connection.removeAllListeners('error');
+  mongoose.connection.removeAllListeners('disconnected');
+  mongoose.connection.removeAllListeners('reconnected');
+  
   mongoose.connection.on('error', (err) => {
     console.error('MongoDB connection error:', err);
   });
 
   mongoose.connection.on('disconnected', () => {
     console.warn('MongoDB disconnected');
-    cachedConnection.client = null;
-    cachedConnection.promise = null;
   });
+  
+  mongoose.connection.on('reconnected', () => {
+    console.log('MongoDB reconnected');
+  });
+}
 
-  return cachedConnection.client;
+/**
+ * Get current MongoDB connection status
+ * @returns Connection status object
+ */
+export function getConnectionStatus() {
+  return {
+    status: global.mongoose.conn ? 'connected' : 'disconnected',
+    readyState: mongoose.connection.readyState,
+    connected: mongoose.connection.readyState === 1
+  };
 }
 
 export default connectToDatabase; 
