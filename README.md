@@ -16,7 +16,7 @@ BlockCreative is a platform that connects scriptwriters with producers, leveragi
 - **Frontend**: Next.js with React components
 - **Backend**: Next.js API routes
 - **Database**: MongoDB
-- **Authentication**: Reown
+- **Authentication**: Reown AppKit
 - **Blockchain**: Lisk Sepolia Testnet
 - **AI**: Google Gemini Pro API
 - **Smart Contracts**: Custom NFT and escrow contracts
@@ -26,9 +26,11 @@ BlockCreative is a platform that connects scriptwriters with producers, leveragi
 ### Prerequisites
 
 - Node.js 18+ and npm
-- MongoDB instance
-- Lisk Sepolia Testnet connection
+- MongoDB instance (Atlas or local)
+- Wallet with Lisk Sepolia Testnet tokens
 - Google Gemini API key
+- Reown Project ID (for wallet authentication)
+- Pinata account (for IPFS storage)
 
 ### Installation
 
@@ -47,7 +49,48 @@ BlockCreative is a platform that connects scriptwriters with producers, leveragi
    ```bash
    cp .env.example .env.local
    ```
-   Then edit `.env.local` with your own values.
+   Then edit `.env.local` with your own values:
+
+   ```
+   # MongoDB Configuration
+   MONGODB_URI=mongodb+srv://yourusername:yourpassword@cluster0.example.mongodb.net/blockcreative?retryWrites=true&w=majority
+   MONGODB_DB=blockcreative
+
+   # Authentication - Reown
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+   # Blockchain - Lisk Sepolia Testnet
+   LISK_RPC_URL=https://sepolia.rpc.example.com
+   LISK_PRIVATE_KEY=your_private_key_for_platform_wallet
+   LISK_CHAIN_ID=11155111
+
+   # Smart Contract Addresses
+   SCRIPT_NFT_ADDRESS=0x0000000000000000000000000000000000000000
+   PROJECT_REGISTRY_ADDRESS=0x0000000000000000000000000000000000000000
+   ESCROW_MANAGER_ADDRESS=0x0000000000000000000000000000000000000000
+   PLATFORM_FEE_MANAGER_ADDRESS=0x0000000000000000000000000000000000000000
+
+   # Public environment variables
+   NEXT_PUBLIC_LISK_RPC_URL=https://sepolia.rpc.example.com
+   NEXT_PUBLIC_SCRIPT_NFT_ADDRESS=0x0000000000000000000000000000000000000000
+   NEXT_PUBLIC_PROJECT_REGISTRY_ADDRESS=0x0000000000000000000000000000000000000000
+   NEXT_PUBLIC_ESCROW_MANAGER_ADDRESS=0x0000000000000000000000000000000000000000
+   NEXT_PUBLIC_PLATFORM_FEE_MANAGER_ADDRESS=0x0000000000000000000000000000000000000000
+   NEXT_PUBLIC_PLATFORM_FEE_PERCENTAGE=3
+   
+   # IPFS Storage (Pinata)
+   PINATA_JWT=your_pinata_jwt_token
+   NEXT_PUBLIC_GATEWAY_URL=https://gateway.pinata.cloud
+   
+   # AI Integration
+   GEMINI_API_KEY=your_gemini_api_key
+
+   # Platform Configuration
+   PLATFORM_FEE_PERCENTAGE=3
+   
+   # Debugging (optional)
+   DEBUG_AUTH=false
+   ```
 
 4. Start the development server:
    ```bash
@@ -56,43 +99,126 @@ BlockCreative is a platform that connects scriptwriters with producers, leveragi
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-6. Check the test page to verify everything is working:
-   ```
-   http://localhost:3000/test
-   ```
+### Verification Steps
+
+To verify your setup is working correctly:
+
+1. **Check MongoDB Connection**:
+   - Look for successful connection logs in your terminal
+   - The application will fall back to mock data if connection fails
+
+2. **Test Authentication**:
+   - Navigate to http://localhost:3000/signin
+   - Connect your wallet using Reown AppKit
+   - Check browser console for authentication flow logs
+
+3. **Verify API Endpoints**:
+   - After authentication, test API with: http://localhost:3000/api/users/me
+   - Should return your user information if authentication is working
+
+4. **Test Blockchain Integration**:
+   - Navigate to writer/producer dashboard
+   - Look for wallet connection info and blockchain status
+
+5. **Verify AI Integration**:
+   - Submit a test script via the writer workflow
+   - Check for Gemini API analysis response
+
+## Development Commands
+
+```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm run start
+
+# Run linting
+npm run lint
+
+# Clean build files
+npm run clean
+
+# Clean and rebuild
+npm run clean:build
+```
 
 ## Troubleshooting
 
+### Authentication Issues
+
+If you experience authentication problems:
+
+1. **Check Reown AppKit Configuration**:
+   - Verify your project ID in `src/context/index.tsx`
+   - Check the domain configuration matches your deployment
+
+2. **Debug Authentication Flow**:
+   - Set `DEBUG_AUTH=true` in your `.env.local`
+   - Check browser console and server logs for detailed auth flow
+
+3. **Clear Authentication State**:
+   - Clear localStorage and cookies in your browser
+   - Use the `/signout` route to properly disconnect
+
 ### MongoDB Connection Issues
 
-If you have issues connecting to MongoDB, the application is designed to fall back to mock data for development purposes. You can see the connection status on the test page at `/test`.
+If you have issues connecting to MongoDB:
 
-To ensure the MongoDB connection works:
-1. Make sure your MongoDB URI in `.env.local` is correct
-2. Check that your IP address is whitelisted in your MongoDB Atlas settings
-3. Verify your database username and password
+1. **Check Database URI**:
+   - Verify your MongoDB URI in `.env.local` is correct
+   - Ensure your IP address is whitelisted in MongoDB Atlas
 
-### CSS Loading Issues
+2. **Connection Fallback**:
+   - The application falls back to mock data in development 
+   - Check the connection status in the console logs
 
-If you experience issues with CSS not loading or seeing many 404 errors for CSS files in the console:
+3. **Database Models**:
+   - Models are defined in `src/models/` directory
+   - Ensure your MongoDB cluster has appropriate permissions
 
-1. Disable the experimental `optimizeCss` feature in `next.config.js`:
-   ```js
-   experimental: {
-     optimizeCss: false,
-     // other settings...
-   }
-   ```
+### Blockchain Integration Issues
 
-2. Clean the `.next` build directory:
+1. **Wallet Connection**:
+   - Make sure your wallet has Lisk Sepolia testnet configured
+   - Check browser console for wallet connection errors
+
+2. **Contract Interactions**:
+   - Verify contract addresses in your `.env.local`
+   - Check you have sufficient testnet tokens for transactions
+
+3. **Network Configuration**:
+   - Confirm the RPC URL is accessible
+   - Verify chain ID matches Lisk Sepolia (11155111)
+
+### CSS and UI Issues
+
+If you experience issues with CSS not loading properly:
+
+1. **Clear Next.js Cache**:
    ```bash
-   rm -rf .next
-   ```
-
-3. Restart the development server:
-   ```bash
+   npm run clean
    npm run dev
    ```
+
+2. **Check Tailwind Configuration**:
+   - Review `tailwind.config.ts` settings
+   - Ensure all required CSS files are imported
+
+3. **Disable CSS Optimization**:
+   - Make sure `optimizeCss: false` is set in `next.config.js`
+
+## Key Files and Directories
+
+- **Authentication**: `src/lib/auth-helpers.ts`, `src/middleware.ts`
+- **API Routes**: `src/app/api/`
+- **Database**: `src/lib/mongodb.ts`, `src/models/`
+- **Blockchain**: `src/lib/blockchain.ts`
+- **Components**: `src/components/`
+- **Pages**: `src/app/`
 
 ## Smart Contracts
 
@@ -105,11 +231,11 @@ The platform utilizes the following smart contracts:
 
 ## API Documentation
 
-See [API-DOCUMENTATION.md](./API-DOCUMENTATION.md) for detailed API endpoints.
+For detailed API endpoints documentation, see [API-DOCUMENTATION.md](./api-documentation.md).
 
-## Architecture
+## Architecture Documentation
 
-See [BlockCreativeArchitecture.md](./BlockCreativeArchitecture.md) for detailed architecture documentation.
+For architectural overview, see [BlockCreativeArchitecture.md](./BlockCreativeArchitecture.md).
 
 ## User Workflows
 
