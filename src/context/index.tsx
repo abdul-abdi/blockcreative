@@ -4,9 +4,8 @@ import { wagmiAdapter, projectId, domain } from '@/config'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createAppKit } from '@reown/appkit/react'
 import { mainnet, arbitrum, lisk, liskSepolia } from '@reown/appkit/networks'
-import React, { type ReactNode, createContext, useContext } from 'react'
+import React, { type ReactNode, createContext, useContext, useEffect } from 'react'
 import { cookieToInitialState, WagmiProvider, type Config, type State } from 'wagmi'
-import { SessionProvider } from 'next-auth/react'
 
 // Set up queryClient
 const queryClient = new QueryClient()
@@ -23,7 +22,9 @@ const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 }
 
-// Create the AppKit modal
+console.log('Initializing AppKit with domain:', domain, 'and projectId:', projectId);
+
+// Create the AppKit modal without SIWE integration
 export const appKitModal = createAppKit({
   adapters: [wagmiAdapter],
   projectId,
@@ -59,20 +60,40 @@ function ContextProvider({
   
   try {
     if (cookies && cookies.trim() !== '') {
+      console.log('Parsing cookies for Wagmi state initialization');
       initialState = cookieToInitialState(wagmiAdapter.wagmiConfig as Config, cookies);
+      console.log('Wagmi state initialized from cookies');
+    } else {
+      console.log('No cookies available for Wagmi state initialization');
     }
   } catch (error) {
     console.error('Error parsing cookies for Wagmi state:', error);
   }
 
+  // Effect for wallet initialization logging
+  useEffect(() => {
+    console.log('ContextProvider mounted - wallet services initialized');
+    
+    // Listen for wallet connection events if needed
+    const handleWalletChange = () => {
+      console.log('Wallet state changed');
+    };
+
+    // You can add global event listeners here if needed
+    window.addEventListener('wallet-changed', handleWalletChange);
+    
+    return () => {
+      window.removeEventListener('wallet-changed', handleWalletChange);
+      console.log('ContextProvider unmounted - cleaning up wallet listeners');
+    };
+  }, []);
+
   return (
     <WagmiProvider config={wagmiAdapter.wagmiConfig as Config} initialState={initialState}>
       <QueryClientProvider client={queryClient}>
-        <SessionProvider>
-          <DatabaseContext.Provider value={{ connected: dbConnected }}>
-            {children}
-          </DatabaseContext.Provider>
-        </SessionProvider>
+        <DatabaseContext.Provider value={{ connected: dbConnected }}>
+          {children}
+        </DatabaseContext.Provider>
       </QueryClientProvider>
     </WagmiProvider>
   )

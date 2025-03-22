@@ -1,30 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
-import { getSessionCookieName } from './lib/session-helper';
 
 /**
- * Middleware to enhance authentication across environments
- * Handles cookie management, authentication debugging, and authentication persistence
+ * Middleware to enhance request handling across environments
+ * Handles header management and debugging
  */
 export async function middleware(request: NextRequest) {
   try {
     const isProduction = process.env.NODE_ENV === 'production';
     const shouldLog = !isProduction || process.env.DEBUG_AUTH === 'true';
     
-    // Clone the response to add headers and cookies
+    // Clone the response to add headers
     const response = NextResponse.next();
-    
-    // Get authentication data from various sources
-    const cookieName = getSessionCookieName();
-    const token = await getToken({ 
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-      secureCookie: isProduction
-    });
-    
-    // Check for AppKit authentication
-    const appKitSession = request.cookies.get('appkit.session')?.value;
     
     // Get wallet address and user role from cookies or headers
     const walletAddress = request.cookies.get('walletAddress')?.value || 
@@ -42,12 +29,9 @@ export async function middleware(request: NextRequest) {
     
     // Log auth details if needed
     if (shouldLog) {
-      console.log('----- Auth Debug Middleware -----');
+      console.log('----- Debug Middleware -----');
       console.log('Path:', request.nextUrl.pathname);
       console.log('Environment:', process.env.NODE_ENV);
-      console.log('Auth cookie name:', cookieName);
-      console.log('NextAuth token exists:', !!token);
-      console.log('AppKit session exists:', !!appKitSession);
       console.log('Wallet address exists:', !!walletAddress);
       console.log('User role exists:', !!userRole);
       console.log('Cookies present:', request.cookies.size > 0);
@@ -56,7 +40,7 @@ export async function middleware(request: NextRequest) {
         console.log('Cookie names:', Array.from(request.cookies.getAll(), cookie => cookie.name).join(', '));
       }
       
-      console.log('---------------------------------');
+      console.log('--------------------------');
     }
     
     // Add CORS headers for Vercel deployments if needed
@@ -89,12 +73,20 @@ export const config = {
     // Auth-related paths
     '/signin',
     '/signup',
-    '/api/auth/:path*',
     // Dashboard paths
     '/writer/:path*', 
     '/producer/:path*',
     // API paths
     '/api/users/:path*',
-    '/api/onboarding/:path*'
+    '/api/onboarding/:path*',
+    '/api/projects/:path*',
+    '/api/blockchain/:path*',
+    // Writer API paths except scripts/analyze
+    '/api/writer/dashboard/:path*',
+    '/api/writer/profile/:path*',
+    '/api/writer/settings/:path*',
+    '/api/writer/submissions/:path*',
+    // Don't include '/api/writer/scripts/analyze' to allow public access
+    '/api/submissions/:path*'
   ]
 }; 

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import { User } from '@/models';
-import { getToken } from 'next-auth/jwt';
 import { v4 as uuidv4 } from 'uuid';
 
 // Field validation functions
@@ -57,52 +56,41 @@ export async function POST(request: NextRequest) {
     // Sanitize profile data
     const sanitizedProfileData = sanitizeProfileData(body);
     
-    // Check authentication via multiple methods
-    const token = await getToken({ req: request as any });
-    
-    // Try to find user by token first
+    // Check for wallet address in headers, cookies, or body
     let user = null;
-    if (token && token.id) {
-      console.log('Looking up user by token ID:', token.id);
-      user = await User.findOne({ id: token.id });
-    }
+    const walletAddress = 
+      request.headers.get('x-wallet-address') || 
+      request.cookies.get('walletAddress')?.value ||
+      body.walletAddress;
     
-    // If no user found by token, try wallet address from headers, cookies, or body
-    if (!user) {
-      // Check for wallet address in headers, cookies, or request body
-      const walletAddress = 
-        request.headers.get('x-wallet-address') || 
-        request.cookies.get('walletAddress')?.value ||
-        body.walletAddress;
+    if (walletAddress) {
+      console.log('Looking up user by wallet address:', walletAddress);
+      user = await User.findOne({ address: walletAddress });
       
-      if (walletAddress) {
-        console.log('Looking up user by wallet address:', walletAddress);
-        user = await User.findOne({ address: walletAddress });
+      // If still no user found but we have a wallet address, create a new user
+      if (!user && walletAddress) {
+        console.log('Creating new user with wallet address:', walletAddress);
         
-        // If still no user found but we have a wallet address, create a new user
-        if (!user && walletAddress) {
-          console.log('Creating new user with wallet address:', walletAddress);
-          
-          user = new User({
-            id: `user_${uuidv4()}`,
-            address: walletAddress,
-            role: 'writer', // Setting role directly since we're in writer onboarding
-            created_at: new Date(),
-            profile_data: sanitizedProfileData,
-            onboarding_completed: false,
-            onboarding_step: 1
-          });
-          
-          try {
-            await user.save();
-            console.log('New writer user created with ID:', user.id);
-          } catch (saveError) {
-            console.error('Error saving new user:', saveError);
-            return NextResponse.json({ 
-              error: 'Failed to create user account', 
-              details: saveError instanceof Error ? saveError.message : 'Database error'
-            }, { status: 500 });
-          }
+        user = new User({
+          id: `user_${uuidv4()}`,
+          address: walletAddress,
+          role: 'writer', // Setting role directly since we're in writer onboarding
+          created_at: new Date(),
+          profile_data: sanitizedProfileData,
+          onboarding_completed: false,
+          onboarding_step: 1,
+          app_kit_user_id: body.app_kit_user_id || null
+        });
+        
+        try {
+          await user.save();
+          console.log('New writer user created with ID:', user.id);
+        } catch (saveError) {
+          console.error('Error saving new user:', saveError);
+          return NextResponse.json({ 
+            error: 'Failed to create user account', 
+            details: saveError instanceof Error ? saveError.message : 'Database error'
+          }, { status: 500 });
         }
       }
     }
@@ -113,8 +101,9 @@ export async function POST(request: NextRequest) {
         // Check for AppKit authentication signals
         const appKitSession = request.cookies.get('appkit.session')?.value;
         const userEmail = request.cookies.get('userEmail')?.value;
+        const appKitUserId = body.app_kit_user_id;
         
-        if (appKitSession || userEmail) {
+        if (appKitSession || userEmail || appKitUserId) {
           // We have AppKit session indicators, but no user record yet
           console.log('Possible AppKit authentication detected');
           
@@ -130,11 +119,12 @@ export async function POST(request: NextRequest) {
               created_at: new Date(),
               profile_data: sanitizedProfileData,
               onboarding_completed: false,
-              onboarding_step: 1
+              onboarding_step: 1,
+              app_kit_user_id: appKitUserId
             });
             
             await user.save();
-            console.log('New AppKit authenticated user created:', user.id);
+            console.log('New AppKit authenticated user created:', user.id, 'AppKit user ID:', appKitUserId || 'none');
           }
         }
       } catch (appKitError) {

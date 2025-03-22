@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useUser } from '@/lib/hooks/useUser';
+import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
-import { getSessionCookieName } from '@/lib/session-helper';
 
 // Define API endpoint types for testing
 type ApiEndpoint = {
@@ -20,8 +19,8 @@ type ApiEndpoint = {
 
 export default function DebugPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
   const { user, error, isLoading } = useUser();
+  const { address, isConnected } = useAccount();
   const [cookies, setCookies] = useState<string[]>([]);
   const [localStorageItems, setLocalStorageItems] = useState<Record<string, string>>({});
   const [apiTest, setApiTest] = useState<{ 
@@ -38,6 +37,26 @@ export default function DebugPage() {
   const [selectedEndpoint, setSelectedEndpoint] = useState<string>('');
   const [testInputs, setTestInputs] = useState<Record<string, any>>({});
   const [activeCategory, setActiveCategory] = useState<string>('all');
+  
+  // Project status state
+  const [projectStatusId, setProjectStatusId] = useState('');
+  const [projectStatusResult, setProjectStatusResult] = useState<any>(null);
+  
+  // Error logging
+  const [errorLog, setErrorLog] = useState<Array<{
+    timestamp: string;
+    error: string;
+    endpoint?: string;
+  }>>([]);
+  
+  // Request logging for debugging
+  const [requestLog, setRequestLog] = useState<Array<{
+    timestamp: string;
+    method: string;
+    url: string;
+    requestBody?: any;
+    headers?: Record<string, string>;
+  }>>([]);
 
   // List of available API endpoints to test
   const apiEndpoints: ApiEndpoint[] = [
@@ -284,15 +303,6 @@ export default function DebugPage() {
     }));
   };
 
-  // Request logging for debugging
-  const [requestLog, setRequestLog] = useState<Array<{
-    timestamp: string;
-    method: string;
-    url: string;
-    requestBody?: any;
-    headers?: Record<string, string>;
-  }>>([]);
-
   // Test any API endpoint
   const testEndpoint = async (endpoint: ApiEndpoint) => {
     try {
@@ -429,13 +439,6 @@ export default function DebugPage() {
     }
   };
 
-  // Error tracking
-  const [errorLog, setErrorLog] = useState<Array<{
-    timestamp: string;
-    error: string;
-    endpoint?: string;
-  }>>([]);
-  
   // Clear error log
   const clearErrorLog = () => {
     setErrorLog([]);
@@ -772,10 +775,6 @@ export default function DebugPage() {
     }));
   };
 
-  // Add state variables at the top of your component
-  const [projectStatusId, setProjectStatusId] = useState('');
-  const [projectStatusResult, setProjectStatusResult] = useState<any>(null);
-
   // Add the function to check project status
   const checkProjectStatus = async () => {
     if (!projectStatusId) {
@@ -839,34 +838,34 @@ export default function DebugPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <><div className="container mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-6">Debug Console</h1>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-6">
-        <div className="bg-gray-800 p-4 rounded-lg">
-          <h2 className="text-xl font-semibold mb-4">Environment</h2>
+          <div className="bg-gray-800 p-4 rounded-lg">
+            <h2 className="text-xl font-semibold mb-4">Environment</h2>
             <div className="space-y-2 text-sm">
-            <p><strong>NODE_ENV:</strong> {process.env.NODE_ENV || 'Not set'}</p>
-            <p><strong>Expected Cookie Name:</strong> {getSessionCookieName()}</p>
-            <p><strong>Is Production:</strong> {process.env.NODE_ENV === 'production' ? 'Yes' : 'No'}</p>
-              <p><strong>Auth Status:</strong> {status}</p>
+              <p><strong>NODE_ENV:</strong> {process.env.NODE_ENV || 'Not set'}</p>
+              <p><strong>Expected Cookie Name:</strong> next-auth.session-token</p>
+              <p><strong>Is Production:</strong> {process.env.NODE_ENV === 'production' ? 'Yes' : 'No'}</p>
+              <p><strong>Auth Status:</strong> {isConnected ? 'connected' : 'disconnected'}</p>
               <p><strong>User Role:</strong> {user?.role || 'Not authenticated'}</p>
+            </div>
           </div>
-        </div>
-        
-        <div className="bg-gray-800 p-4 rounded-lg">
+
+          <div className="bg-gray-800 p-4 rounded-lg">
             <h2 className="text-xl font-semibold mb-4">API Endpoints</h2>
-            
+
             <div className="flex flex-wrap gap-2 mb-4">
-              <button 
+              <button
                 onClick={() => setActiveCategory('all')}
                 className={`px-3 py-1 text-xs rounded ${activeCategory === 'all' ? 'bg-blue-600' : 'bg-gray-700'}`}
               >
                 All
               </button>
               {['auth', 'user', 'project', 'blockchain', 'submission', 'nft', 'ai', 'workflow'].map(category => (
-                <button 
+                <button
                   key={category}
                   onClick={() => setActiveCategory(category)}
                   className={`px-3 py-1 text-xs rounded capitalize ${activeCategory === category ? 'bg-blue-600' : 'bg-gray-700'}`}
@@ -875,17 +874,15 @@ export default function DebugPage() {
                 </button>
               ))}
             </div>
-            
+
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {filteredEndpoints.map((endpoint) => (
                 <div key={endpoint.name} className="border border-gray-700 rounded p-3 text-sm">
                   <div className="flex justify-between items-start">
                     <h3 className="font-medium">{endpoint.name}</h3>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      endpoint.method === 'GET' ? 'bg-green-800' : 
-                      endpoint.method === 'POST' ? 'bg-blue-800' : 
-                      endpoint.method === 'PUT' ? 'bg-yellow-800' : 'bg-red-800'
-                    }`}>
+                    <span className={`text-xs px-2 py-1 rounded ${endpoint.method === 'GET' ? 'bg-green-800' :
+                        endpoint.method === 'POST' ? 'bg-blue-800' :
+                          endpoint.method === 'PUT' ? 'bg-yellow-800' : 'bg-red-800'}`}>
                       {endpoint.method}
                     </span>
                   </div>
@@ -893,7 +890,7 @@ export default function DebugPage() {
                   <div className="text-xs mt-2 text-gray-400">
                     <code>{endpoint.url}</code>
                   </div>
-                  <button 
+                  <button
                     onClick={() => {
                       setSelectedEndpoint(endpoint.name);
                       // Pre-populate with any default values
@@ -902,32 +899,32 @@ export default function DebugPage() {
                       } else {
                         setTestInputs({});
                       }
-                    }}
+                    } }
                     className="mt-2 bg-gray-700 hover:bg-gray-600 text-xs px-3 py-1 rounded w-full"
                   >
                     Select
                   </button>
                 </div>
               ))}
+            </div>
           </div>
-        </div>
-        
-        <div className="bg-gray-800 p-4 rounded-lg">
+
+          <div className="bg-gray-800 p-4 rounded-lg">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Error Log</h2>
-              <button 
-                onClick={clearErrorLog} 
+              <button
+                onClick={clearErrorLog}
                 className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs"
               >
                 Clear Errors
               </button>
             </div>
-            
+
             <div className="max-h-60 overflow-y-auto">
               {errorLog.length === 0 ? (
                 <p className="text-gray-400 text-center text-sm py-4">No errors logged</p>
               ) : (
-          <div className="space-y-2">
+                <div className="space-y-2">
                   {errorLog.map((error, index) => (
                     <div key={index} className="bg-gray-900 p-2 rounded text-xs border-l-2 border-red-500">
                       <div className="flex justify-between items-start">
@@ -941,27 +938,27 @@ export default function DebugPage() {
                       <p className="mt-1 text-gray-300">{error.error}</p>
                     </div>
                   ))}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-        
-        <div className="bg-gray-800 p-4 rounded-lg">
+
+          <div className="bg-gray-800 p-4 rounded-lg">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Request Log</h2>
-              <button 
-                onClick={clearRequestLog} 
+              <button
+                onClick={clearRequestLog}
                 className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs"
               >
                 Clear Log
               </button>
             </div>
-            
+
             <div className="max-h-60 overflow-y-auto">
               {requestLog.length === 0 ? (
                 <p className="text-gray-400 text-center text-sm py-4">No requests logged</p>
               ) : (
-          <div className="space-y-2">
+                <div className="space-y-2">
                   {requestLog.map((req, index) => (
                     <div key={index} className="bg-gray-900 p-2 rounded text-xs border-l-2 border-blue-500">
                       <div className="flex justify-between items-start">
@@ -971,8 +968,8 @@ export default function DebugPage() {
                         <span className="text-gray-500">
                           {new Date(req.timestamp).toLocaleTimeString()}
                         </span>
-              </div>
-                      
+                      </div>
+
                       {req.requestBody && Object.keys(req.requestBody).length > 0 && (
                         <details className="mt-1">
                           <summary className="text-gray-400 cursor-pointer">Request Body</summary>
@@ -981,27 +978,27 @@ export default function DebugPage() {
                           </pre>
                         </details>
                       )}
-                      
+
                       {req.headers && Object.keys(req.headers).length > 0 && (
                         <details className="mt-1">
                           <summary className="text-gray-400 cursor-pointer">Headers</summary>
                           <pre className="mt-1 bg-gray-950 p-1 rounded text-xxs overflow-auto">
                             {JSON.stringify(req.headers, null, 2)}
-                </pre>
+                          </pre>
                         </details>
                       )}
                     </div>
                   ))}
-              </div>
-            )}
+                </div>
+              )}
             </div>
           </div>
         </div>
-        
+
         <div className="md:col-span-2 space-y-6">
-        <div className="bg-gray-800 p-4 rounded-lg">
+          <div className="bg-gray-800 p-4 rounded-lg">
             <h2 className="text-xl font-semibold mb-4">API Test Console</h2>
-            
+
             {selectedEndpoint ? (
               <>
                 <div className="mb-4">
@@ -1011,10 +1008,10 @@ export default function DebugPage() {
                   <p className="text-sm text-gray-400 mb-4">
                     {apiEndpoints.find(e => e.name === selectedEndpoint)?.description}
                   </p>
-                  
+
                   <div className="space-y-3">
                     {/* Dynamic form for endpoint parameters */}
-                    {apiEndpoints.find(e => e.name === selectedEndpoint)?.body && 
+                    {apiEndpoints.find(e => e.name === selectedEndpoint)?.body &&
                       Object.entries(apiEndpoints.find(e => e.name === selectedEndpoint)?.body || {}).map(([key, defaultValue]) => (
                         <div key={key} className="grid grid-cols-3 gap-2 items-center">
                           <label className="text-sm">{key}:</label>
@@ -1024,47 +1021,43 @@ export default function DebugPage() {
                               value={testInputs[key] || ''}
                               onChange={(e) => handleInputChange(key, e.target.value)}
                               placeholder={String(defaultValue)}
-                              rows={8}
-                            />
+                              rows={8} />
                           ) : (
-                            <input 
+                            <input
                               type={typeof defaultValue === 'number' ? 'number' : 'text'}
                               className="col-span-2 bg-gray-700 p-2 rounded text-sm"
                               value={testInputs[key] || ''}
                               onChange={(e) => handleInputChange(key, e.target.value)}
-                              placeholder={String(defaultValue)}
-                            />
+                              placeholder={String(defaultValue)} />
                           )}
                         </div>
-                      ))
-                    }
-                    
+                      ))}
+
                     {/* ID field for endpoints with URL parameters */}
                     {apiEndpoints.find(e => e.name === selectedEndpoint)?.url.includes('{id}') && (
                       <div className="grid grid-cols-3 gap-2 items-center">
                         <label className="text-sm">id (URL parameter):</label>
-                        <input 
+                        <input
                           type="text"
                           className="col-span-2 bg-gray-700 p-2 rounded text-sm"
                           value={testInputs.id || ''}
                           onChange={(e) => handleInputChange('id', e.target.value)}
-                          placeholder="Required ID parameter"
-                        />
+                          placeholder="Required ID parameter" />
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex gap-2 mt-4">
-                    <button 
+                    <button
                       onClick={() => testEndpoint(apiEndpoints.find(e => e.name === selectedEndpoint)!)}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
                       disabled={apiTest.status === 'loading'}
                     >
                       {apiTest.status === 'loading' ? 'Testing...' : 'Execute Request'}
                     </button>
-                    
+
                     {selectedEndpoint === 'Create Project' && (
-                      <button 
+                      <button
                         onClick={() => {
                           // Ensure proper types for create project
                           const modifiedInputs = {
@@ -1073,12 +1066,12 @@ export default function DebugPage() {
                             status: 'draft' // Force status to draft for testing
                           };
                           setTestInputs(modifiedInputs);
-                          
+
                           // Run the test with a slight delay to allow state update
                           setTimeout(() => {
                             testEndpoint(apiEndpoints.find(e => e.name === selectedEndpoint)!);
                           }, 100);
-                        }}
+                        } }
                         className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
                         disabled={apiTest.status === 'loading'}
                       >
@@ -1093,7 +1086,7 @@ export default function DebugPage() {
                 Select an API endpoint from the list to test
               </p>
             )}
-            
+
             {apiTest.status !== 'idle' && (
               <div className="mt-4">
                 <div className="flex justify-between items-center mb-2">
@@ -1108,7 +1101,7 @@ export default function DebugPage() {
                     </span>
                   )}
                 </div>
-                
+
                 {/* Show troubleshooting tips for 500 errors on Create Project */}
                 {apiTest.endpoint === 'Create Project' && apiTest.status.includes('500') && (
                   <div className="mb-4 bg-red-900/30 border border-red-800 p-3 rounded">
@@ -1122,7 +1115,7 @@ export default function DebugPage() {
                     </ul>
                   </div>
                 )}
-                
+
                 {/* Enhanced response display with collapsible sections for AI analysis results */}
                 {apiTest.endpoint?.includes('Analyze') && apiTest.data?.analysis ? (
                   <div className="bg-gray-900 p-3 rounded overflow-auto max-h-96">
@@ -1154,25 +1147,25 @@ export default function DebugPage() {
                           </div>
                         )}
                       </div>
-                      
+
                       {apiTest.data.analysis.summary && (
                         <div className="mt-3 bg-gray-800 p-2 rounded">
                           <h5 className="text-xs text-gray-400">Summary</h5>
                           <p className="text-sm whitespace-pre-wrap">{apiTest.data.analysis.summary}</p>
                         </div>
                       )}
-                      
+
                       {apiTest.data.analysis.strengths && (
                         <div className="mt-3 bg-gray-800 p-2 rounded">
                           <h5 className="text-xs text-gray-400">Strengths</h5>
                           <ul className="list-disc pl-5 text-sm">
                             {apiTest.data.analysis.strengths.map((strength: string, i: number) => (
                               <li key={i}>{strength}</li>
-              ))}
-            </ul>
+                            ))}
+                          </ul>
                         </div>
                       )}
-                      
+
                       {apiTest.data.analysis.improvements && (
                         <div className="mt-3 bg-gray-800 p-2 rounded">
                           <h5 className="text-xs text-gray-400">Areas for Improvement</h5>
@@ -1184,7 +1177,7 @@ export default function DebugPage() {
                         </div>
                       )}
                     </div>
-                    
+
                     <details className="mt-4">
                       <summary className="text-xs text-gray-400 cursor-pointer">View Raw JSON Response</summary>
                       <pre className="mt-2 text-xs">
@@ -1195,25 +1188,25 @@ export default function DebugPage() {
                 ) : (
                   <pre className="bg-gray-900 p-3 rounded overflow-auto max-h-80 text-sm">
                     {JSON.stringify(apiTest.data, null, 2)}
-                </pre>
+                  </pre>
                 )}
               </div>
-          )}
-        </div>
-        
+            )}
+          </div>
+
           {/* Add blockchain troubleshooter below API test console */}
-        <div className="bg-gray-800 p-4 rounded-lg">
+          <div className="bg-gray-800 p-4 rounded-lg">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Blockchain Troubleshooter</h2>
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={() => setEnvEditor(prev => ({ ...prev, isOpen: !prev.isOpen }))}
                   className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm"
                 >
                   Edit Env Vars
                 </button>
-                <button 
-                  onClick={forceBlockchainInitialization} 
+                <button
+                  onClick={forceBlockchainInitialization}
                   className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm flex items-center gap-2"
                   disabled={initializingBlockchain}
                 >
@@ -1229,8 +1222,8 @@ export default function DebugPage() {
                     <>Force Initialize</>
                   )}
                 </button>
-          <button 
-                  onClick={runBlockchainDiagnostics} 
+                <button
+                  onClick={runBlockchainDiagnostics}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm flex items-center gap-2"
                   disabled={blockchainDiagnostics.running}
                 >
@@ -1245,10 +1238,10 @@ export default function DebugPage() {
                   ) : (
                     <>Run Diagnostics</>
                   )}
-          </button>
+                </button>
               </div>
-        </div>
-        
+            </div>
+
             {/* Environment Variables Editor */}
             {envEditor.isOpen && (
               <div className="mb-6 border border-yellow-700 p-3 rounded bg-gray-900/50">
@@ -1256,29 +1249,28 @@ export default function DebugPage() {
                 <p className="text-sm text-gray-400 mb-4">
                   These variables are required for blockchain operations. For testing purposes, they will be stored in your browser's localStorage.
                 </p>
-                
+
                 <div className="space-y-3">
                   {Object.entries(envEditor.variables).map(([key, value]) => (
                     <div key={key} className="grid grid-cols-5 gap-2 items-center">
                       <label className="text-sm col-span-2">{key}:</label>
-                      <input 
+                      <input
                         type="text"
                         className="col-span-3 bg-gray-700 p-2 rounded text-sm"
                         value={value}
                         onChange={(e) => updateEnvVariable(key, e.target.value)}
-                        placeholder={`Enter ${key}`}
-                      />
+                        placeholder={`Enter ${key}`} />
                     </div>
                   ))}
-                  
+
                   <div className="flex justify-end gap-2 mt-4">
-          <button 
+                    <button
                       onClick={() => setEnvEditor(prev => ({ ...prev, isOpen: false }))}
                       className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
-          >
+                    >
                       Cancel
-          </button>
-                    <button 
+                    </button>
+                    <button
                       onClick={saveEnvVariables}
                       className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
                     >
@@ -1288,19 +1280,15 @@ export default function DebugPage() {
                 </div>
               </div>
             )}
-            
+
             {/* Blockchain Initialization Result */}
             {blockchainInitResult && (
-              <div className={`mb-6 border p-3 rounded ${
-                blockchainInitResult.success ? 'border-green-600 bg-green-900/20' : 'border-red-600 bg-red-900/20'
-              }`}>
-                <h3 className={`text-lg font-medium ${
-                  blockchainInitResult.success ? 'text-green-400' : 'text-red-400'
-                } mb-2`}>
+              <div className={`mb-6 border p-3 rounded ${blockchainInitResult.success ? 'border-green-600 bg-green-900/20' : 'border-red-600 bg-red-900/20'}`}>
+                <h3 className={`text-lg font-medium ${blockchainInitResult.success ? 'text-green-400' : 'text-red-400'} mb-2`}>
                   {blockchainInitResult.success ? 'Initialization Successful' : 'Initialization Failed'}
                 </h3>
                 <p className="text-sm text-gray-300 mb-2">{blockchainInitResult.message}</p>
-                
+
                 {blockchainInitResult.details && (
                   <details className="mt-2">
                     <summary className="text-xs text-gray-400 cursor-pointer">View Details</summary>
@@ -1311,7 +1299,7 @@ export default function DebugPage() {
                 )}
               </div>
             )}
-            
+
             {blockchainDiagnostics.results.length === 0 ? (
               <p className="text-center text-gray-400 py-8">
                 Click "Run Diagnostics" to check blockchain connectivity issues
@@ -1319,12 +1307,10 @@ export default function DebugPage() {
             ) : (
               <div className="space-y-3">
                 {blockchainDiagnostics.results.map((result, index) => (
-                  <div key={index} className={`border p-3 rounded ${
-                    result.status === 'pending' ? 'border-gray-600 bg-gray-700/30' : 
-                    result.status === 'success' ? 'border-green-600 bg-green-900/20' : 
-                    result.status === 'warning' ? 'border-yellow-600 bg-yellow-900/20' : 
-                    'border-red-600 bg-red-900/20'
-                  }`}>
+                  <div key={index} className={`border p-3 rounded ${result.status === 'pending' ? 'border-gray-600 bg-gray-700/30' :
+                      result.status === 'success' ? 'border-green-600 bg-green-900/20' :
+                        result.status === 'warning' ? 'border-yellow-600 bg-yellow-900/20' :
+                          'border-red-600 bg-red-900/20'}`}>
                     <div className="flex justify-between items-center">
                       <h3 className="font-medium flex items-center gap-2">
                         {result.status === 'pending' && (
@@ -1350,17 +1336,15 @@ export default function DebugPage() {
                         )}
                         {result.test}
                       </h3>
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        result.status === 'pending' ? 'bg-gray-700 text-gray-300' : 
-                        result.status === 'success' ? 'bg-green-900 text-green-300' : 
-                        result.status === 'warning' ? 'bg-yellow-900 text-yellow-300' : 
-                        'bg-red-900 text-red-300'
-                      }`}>
+                      <span className={`text-xs px-2 py-1 rounded ${result.status === 'pending' ? 'bg-gray-700 text-gray-300' :
+                          result.status === 'success' ? 'bg-green-900 text-green-300' :
+                            result.status === 'warning' ? 'bg-yellow-900 text-yellow-300' :
+                              'bg-red-900 text-red-300'}`}>
                         {result.status}
                       </span>
                     </div>
                     <p className="text-sm mt-1 text-gray-300">{result.message}</p>
-                    
+
                     {result.details && (
                       <details className="mt-2">
                         <summary className="text-xs text-gray-400 cursor-pointer">View Details</summary>
@@ -1369,7 +1353,7 @@ export default function DebugPage() {
                         </div>
                       </details>
                     )}
-                    
+
                     {/* Special troubleshooting tips */}
                     {result.test === 'Environment Variables' && result.status === 'error' && (
                       <div className="mt-2 text-xs bg-gray-900 p-2 rounded">
@@ -1382,7 +1366,7 @@ export default function DebugPage() {
                         </ul>
                       </div>
                     )}
-                    
+
                     {result.test === 'Provider Connection' && result.status === 'error' && (
                       <div className="mt-2 text-xs bg-gray-900 p-2 rounded">
                         <h4 className="font-medium text-yellow-400 mb-1">Troubleshooting Tips:</h4>
@@ -1394,7 +1378,7 @@ export default function DebugPage() {
                         </ul>
                       </div>
                     )}
-                    
+
                     {result.test === 'Contract Access' && result.status === 'error' && (
                       <div className="mt-2 text-xs bg-gray-900 p-2 rounded">
                         <h4 className="font-medium text-yellow-400 mb-1">Troubleshooting Tips:</h4>
@@ -1408,74 +1392,77 @@ export default function DebugPage() {
                     )}
                   </div>
                 ))}
-                
+
                 {/* Special message for initialization issues */}
                 {blockchainDiagnostics.results.find(r => r.test === 'Health Check')?.status === 'success' &&
-                 blockchainDiagnostics.results.find(r => r.test === 'Health Check')?.details?.initializationAttempted === false && (
-                  <div className="border-2 border-purple-500 p-3 rounded bg-purple-900/20 mb-4">
-                    <h3 className="font-medium text-purple-400 flex items-center gap-2">
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      Quick Fix Available
-                    </h3>
-                    <p className="text-sm mt-2 text-gray-300">
-                      The blockchain provider is connected but not initialized. Click "Force Initialize" to attempt initialization.
-                    </p>
-                    <button 
-                      onClick={forceBlockchainInitialization} 
-                      className="mt-3 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm"
-                      disabled={initializingBlockchain}
-                    >
-                      {initializingBlockchain ? 'Initializing...' : 'Force Initialize Blockchain'}
-                    </button>
-                  </div>
-                )}
-                
+                  blockchainDiagnostics.results.find(r => r.test === 'Health Check')?.details?.initializationAttempted === false && (
+                    <div className="border-2 border-purple-500 p-3 rounded bg-purple-900/20 mb-4">
+                      <h3 className="font-medium text-purple-400 flex items-center gap-2">
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Quick Fix Available
+                      </h3>
+                      <p className="text-sm mt-2 text-gray-300">
+                        The blockchain provider is connected but not initialized. Click "Force Initialize" to attempt initialization.
+                      </p>
+                      <button
+                        onClick={forceBlockchainInitialization}
+                        className="mt-3 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm"
+                        disabled={initializingBlockchain}
+                      >
+                        {initializingBlockchain ? 'Initializing...' : 'Force Initialize Blockchain'}
+                      </button>
+                    </div>
+                  )}
+
                 {/* Contract error HTML response fix suggestion */}
-                {blockchainDiagnostics.results.find(r => 
-                  r.test === 'Contract Access' && 
+                {blockchainDiagnostics.results.find(r => r.test === 'Contract Access' &&
                   r.details?.error?.includes('<!DOCTYPE')
                 ) && (
-                  <div className="border-2 border-orange-500 p-3 rounded bg-orange-900/20 mb-4">
-                    <h3 className="font-medium text-orange-400 flex items-center gap-2">
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                      </svg>
-                      API Endpoint Error
-                    </h3>
-                    <p className="text-sm mt-2 text-gray-300">
-                      The contract access test received HTML instead of JSON. This usually means:
-                    </p>
-                    <ul className="list-disc pl-5 text-xs mt-2 space-y-1 text-gray-300">
-                      <li>The API endpoint doesn't exist or is not registered</li>
-                      <li>Server returned a 404 or 500 error page</li>
-                      <li>The route is not properly handling the request</li>
-                    </ul>
-                    <p className="text-sm mt-2 text-gray-300">
-                      Check the server console for more details on the error.
-                    </p>
-                  </div>
-                )}
+                    <div className="border-2 border-orange-500 p-3 rounded bg-orange-900/20 mb-4">
+                      <h3 className="font-medium text-orange-400 flex items-center gap-2">
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        API Endpoint Error
+                      </h3>
+                      <p className="text-sm mt-2 text-gray-300">
+                        The contract access test received HTML instead of JSON. This usually means:
+                      </p>
+                      <ul className="list-disc pl-5 text-xs mt-2 space-y-1 text-gray-300">
+                        <li>The API endpoint doesn't exist or is not registered</li>
+                        <li>Server returned a 404 or 500 error page</li>
+                        <li>The route is not properly handling the request</li>
+                      </ul>
+                      <p className="text-sm mt-2 text-gray-300">
+                        Check the server console for more details on the error.
+                      </p>
+                    </div>
+                  )}
               </div>
             )}
           </div>
-          
+
           <div className="bg-gray-800 p-4 rounded-lg">
             <h2 className="text-xl font-semibold mb-4">Authentication Details</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <h3 className="text-lg mb-2">Session Data</h3>
-                {session ? (
+                <h3 className="text-lg mb-2">Wallet Authentication</h3>
+                {isConnected ? (
                   <pre className="bg-gray-900 p-2 rounded overflow-auto max-h-40 text-xs">
-                    {JSON.stringify(session, null, 2)}
-              </pre>
+                    {JSON.stringify({
+                      address,
+                      connected: isConnected,
+                      stored: localStorage.getItem('walletAddress')
+                    }, null, 2)}
+                  </pre>
                 ) : (
-                  <p className="text-gray-400">No active session</p>
+                  <p className="text-gray-400">No wallet connected</p>
                 )}
-            </div>
-              
+              </div>
+
               <div>
                 <h3 className="text-lg mb-2">User Details</h3>
                 {user ? (
@@ -1486,66 +1473,67 @@ export default function DebugPage() {
                   <p className="text-gray-400">No user data available</p>
                 )}
               </div>
+            </div>
           </div>
         </div>
-        
+
         <div className="bg-gray-800 p-4 rounded-lg">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Browser Storage</h2>
-              <button 
-                onClick={clearLocalStorage} 
-                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
-              >
-                Clear LocalStorage
-              </button>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Browser Storage</h2>
+            <button
+              onClick={clearLocalStorage}
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+            >
+              Clear LocalStorage
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-lg mb-2">Cookies</h3>
+              {cookies.length > 0 ? (
+                <div className="bg-gray-900 p-2 rounded max-h-40 overflow-y-auto text-xs">
+                  <ul className="space-y-1">
+                    {cookies.map((cookie, i) => (
+                      <li key={i} className="break-all">{cookie}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-gray-400">No cookies found</p>
+              )}
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <h3 className="text-lg mb-2">Cookies</h3>
-          {cookies.length > 0 ? (
-                  <div className="bg-gray-900 p-2 rounded max-h-40 overflow-y-auto text-xs">
-                    <ul className="space-y-1">
-              {cookies.map((cookie, i) => (
-                        <li key={i} className="break-all">{cookie}</li>
-              ))}
-            </ul>
-                  </div>
-          ) : (
-                  <p className="text-gray-400">No cookies found</p>
-          )}
-        </div>
-        
-              <div>
-                <h3 className="text-lg mb-2">LocalStorage</h3>
-          {Object.keys(localStorageItems).length > 0 ? (
-                  <div className="bg-gray-900 p-2 rounded max-h-40 overflow-y-auto text-xs">
-                    <ul className="space-y-1">
-              {Object.entries(localStorageItems).map(([key, value]) => (
-                        <li key={key} className="break-all">
-                  <strong>{key}:</strong> {value}
-                </li>
-              ))}
-            </ul>
-                  </div>
-                ) : (
-                  <p className="text-gray-400">No localStorage items found</p>
-                )}
-        </div>
-            </div>
+
+            <div>
+              <h3 className="text-lg mb-2">LocalStorage</h3>
+              {Object.keys(localStorageItems).length > 0 ? (
+                <div className="bg-gray-900 p-2 rounded max-h-40 overflow-y-auto text-xs">
+                  <ul className="space-y-1">
+                    {Object.entries(localStorageItems).map(([key, value]) => (
+                      <li key={key} className="break-all">
+                        <strong>{key}:</strong> {value}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-gray-400">No localStorage items found</p>
+              )}
+            </div>  
           </div>
         </div>
       </div>
-      
-      <div className="mt-8 flex gap-4">
-        <button 
-          onClick={() => router.push('/')} 
+    </div>
+
+    <div className="mt-8 flex gap-4">
+        <button
+          onClick={() => router.push('/')}
           className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
         >
           Back to Home
         </button>
-        <button 
-          onClick={() => window.location.reload()} 
+        <button
+          onClick={() => window.location.reload()}
           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
         >
           Refresh Page
@@ -1587,6 +1575,6 @@ export default function DebugPage() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 } 

@@ -5,6 +5,24 @@
 
 import { NextRequest } from 'next/server';
 
+// Define rate limit types
+export type RateLimitType = 'default' | 'strict' | 'userMe' | 'auth';
+
+// Define rate limit configuration interface
+export interface RateLimitConfig {
+  windowMs: number; 
+  limit: number;
+  message?: string;
+}
+
+// Define rate limit result interface
+export interface RateLimitResult {
+  success: boolean;
+  remaining: number;
+  retryAfter?: number;
+  message?: string;
+}
+
 // In-memory store for rate limiting
 // In production, consider using Redis or another distributed store
 const rateLimitStore: {
@@ -25,43 +43,34 @@ setInterval(() => {
 }, 60000); // Clean up every minute
 
 // Configure rate limits for different endpoint types
-export function configureRateLimits() {
-  return {
+export function configureRateLimits(customLimits?: Record<string, RateLimitConfig>) {
+  // Default rate limits
+  const defaults = {
     // For user/me endpoint (called frequently)
     userMe: {
       windowMs: 60 * 1000, // 1 minute
-      maxRequests: 10, // 10 requests per minute
+      limit: 120, // 120 requests per minute
       message: 'Too many requests to user profile, please try again later.'
     },
     // For default API endpoints
     default: {
       windowMs: 60 * 1000, // 1 minute
-      maxRequests: 30, // 30 requests per minute
+      limit: 60, // 60 requests per minute
     },
-    // For submission-related endpoints (more intensive)
-    submission: {
+    // For more restrictive endpoints
+    strict: {
       windowMs: 60 * 1000, // 1 minute
-      maxRequests: 5, // 5 requests per minute
+      limit: 20, // 20 requests per minute
     },
     // For authentication endpoints
     auth: {
       windowMs: 60 * 1000, // 1 minute
-      maxRequests: 15, // 15 requests per minute
+      limit: 20, // 20 requests per minute
       message: 'Too many authentication attempts, please wait before trying again.'
-    },
-    // For AI analysis endpoints (resource intensive)
-    ai: {
-      windowMs: 60 * 1000, // 1 minute
-      maxRequests: 3, // 3 requests per minute
-      message: 'AI analysis request limit reached. Please wait before requesting more analyses.'
-    },
-    // For blockchain endpoints (very resource intensive)
-    blockchain: {
-      windowMs: 5 * 60 * 1000, // 5 minutes
-      maxRequests: 10, // 10 requests per 5 minutes
-      message: 'Blockchain transaction limit reached. Please wait before making more transactions.'
     }
   };
+  
+  return { ...defaults, ...customLimits };
 }
 
 // Get client IP address from request
@@ -89,11 +98,10 @@ function getClientIp(req: NextRequest): string {
  * @param options Rate limit options
  * @returns Rate limit result
  */
-export function rateLimit(req: NextRequest, options: { 
-  windowMs: number; 
-  maxRequests: number;
-  message?: string;
-}) {
+export async function rateLimit(
+  req: NextRequest, 
+  options: RateLimitConfig
+): Promise<RateLimitResult> {
   // Get IP and route path for the rate limit key
   const ip = getClientIp(req);
   const path = new URL(req.url).pathname;
@@ -101,7 +109,7 @@ export function rateLimit(req: NextRequest, options: {
   // Allow bypass with API key for internal services
   const apiKey = req.headers.get('x-api-key');
   if (apiKey && apiKey === process.env.INTERNAL_API_KEY) {
-    return { limited: false, remaining: options.maxRequests };
+    return { success: true, remaining: options.limit };
   }
   
   // Create a key for this specific client and route
@@ -114,24 +122,25 @@ export function rateLimit(req: NextRequest, options: {
       count: 1,
       resetTime: now + options.windowMs
     };
-    return { limited: false, remaining: options.maxRequests - 1 };
+    return { success: true, remaining: options.limit - 1 };
   }
   
   // Increment counter and check if limit exceeded
   rateLimitStore[key].count += 1;
   
-  if (rateLimitStore[key].count > options.maxRequests) {
-    const resetInSeconds = Math.ceil((rateLimitStore[key].resetTime - now) / 1000);
+  if (rateLimitStore[key].count > options.limit) {
+    const retryAfter = Math.ceil((rateLimitStore[key].resetTime - now) / 1000);
     return {
-      limited: true,
+      success: false,
       remaining: 0,
-      message: options.message || `Rate limit exceeded. Try again in ${resetInSeconds} seconds.`
+      retryAfter,
+      message: options.message || `Rate limit exceeded. Try again in ${retryAfter} seconds.`
     };
   }
   
   return {
-    limited: false,
-    remaining: options.maxRequests - rateLimitStore[key].count
+    success: true,
+    remaining: options.limit - rateLimitStore[key].count
   };
 }
 

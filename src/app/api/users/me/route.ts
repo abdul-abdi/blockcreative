@@ -1,163 +1,175 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import { User } from '@/models';
-import { getToken } from 'next-auth/jwt';
 import { withApiMiddleware } from '@/lib/api-middleware';
-import { getSessionCookieName } from '@/lib/session-helper';
+import { v4 as uuidv4 } from 'uuid';
 
 // GET /api/users/me - Get current user info
-async function getUserHandler(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    // Check authentication via NextAuth with more robust options
-    const token = await getToken({ 
-      req: request as any, 
-      secret: process.env.NEXTAUTH_SECRET,
-      secureCookie: process.env.NODE_ENV === 'production'
-    });
+    // Check for wallet address in headers or cookies
+    const walletHeader = request.headers.get('x-wallet-address');
+    const walletCookie = request.cookies.get('walletAddress')?.value;
     
-    // Connect to the database
+    // Debugging
+    console.log('Cookies present:', !!request.cookies.size);
+    console.log('Cookie names:', Array.from(request.cookies.getAll()).map(c => c.name));
+    
+    // Handle wallet address from header or cookie
+    const walletAddress = walletHeader || walletCookie;
+    
+    if (!walletAddress) {
+      console.log('No wallet address provided');
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+    
+    // Normalize wallet address to lowercase for case-insensitive matching
+    const normalizedAddress = walletAddress.toLowerCase();
+    
+    // Connect to database
     await connectToDatabase();
+    console.log('Connected to database for user lookup');
     
-    let user = null;
-    let usedMethod = '';
-    let identifier = '';
-    
-    // Enhanced debugging to help troubleshoot Vercel deployment
-    if (process.env.NODE_ENV !== 'production' || process.env.DEBUG_AUTH === 'true') {
-      console.log('GET /api/users/me - Auth debug:');
-      console.log('Token exists:', !!token);
-      console.log('Environment:', process.env.NODE_ENV);
-      console.log('Cookie name:', getSessionCookieName());
-      console.log('Headers:', Object.fromEntries(request.headers));
-      console.log('Cookies present:', request.cookies.size > 0);
-      if (request.cookies.size > 0) {
-        const cookieNames = Array.from(request.cookies.getAll(), cookie => cookie.name);
-        console.log('Cookie names:', cookieNames);
-      }
+    // Try to find user by wallet address (using normalized lowercase address)
+    if (walletHeader) {
+      console.log('Fetching user by wallet address (header):', normalizedAddress);
     }
     
-    // Try to get user from token
-    if (token && token.id) {
-      usedMethod = 'token';
-      identifier = token.id;
-      console.log('Fetching user by token id:', token.id);
-      user = await User.findOne({ id: token.id }).select('-__v');
+    if (walletCookie) {
+      console.log('Fetching user by wallet address (cookie):', normalizedAddress);
     }
     
-    // If no user found by token id, try to use wallet address from header
+    // Find user with case-insensitive address match
+    let user = await User.findOne({ address: normalizedAddress });
+    
+    // If user not found, check if we should create one
     if (!user) {
-      // Check for wallet address in headers (for direct wallet connections)
-      const walletAddress = request.headers.get('x-wallet-address');
-      
-      if (walletAddress) {
-        usedMethod = 'header';
-        identifier = walletAddress;
-        console.log('Fetching user by wallet address from header:', walletAddress);
-        user = await User.findOne({ address: walletAddress }).select('-__v');
+      if (walletCookie) {
+        console.log('User not found with wallet-cookie:', normalizedAddress);
+      }
+      if (walletHeader) {
+        console.log('User not found with wallet-header:', normalizedAddress);
       }
       
-      // If still no user, check cookies
-      if (!user) {
-        const cookieAddress = request.cookies.get('walletAddress')?.value;
-        if (cookieAddress) {
-          usedMethod = 'cookie';
-          identifier = cookieAddress;
-          console.log('Fetching user by wallet address from cookie:', cookieAddress);
-          user = await User.findOne({ address: cookieAddress }).select('-__v');
+      // Get role from cookie if available
+      const roleCookie = request.cookies.get('userRole')?.value;
+      if (roleCookie && ['writer', 'producer'].includes(roleCookie)) {
+        console.log('Creating new user with role from cookie:', roleCookie);
+        user = await createUser(normalizedAddress, roleCookie);
+        
+        if (!user) {
+          return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+        }
+        
+        console.log('New user created with ID:', user.id);
+      } else {
+        // Check if this is for a writer dashboard
+        const url = request.nextUrl.pathname;
+        if (url.includes('/writer/')) {
+          console.log('Writer dashboard detected, creating writer user');
+          user = await createUser(normalizedAddress, 'writer');
+          
+          if (!user) {
+            return NextResponse.json({ error: 'Failed to create writer user' }, { status: 500 });
+          }
+          
+          console.log('New writer user created with ID:', user.id);
+        } else if (url.includes('/producer/')) {
+          console.log('Producer dashboard detected, creating producer user');
+          user = await createUser(normalizedAddress, 'producer');
+          
+          if (!user) {
+            return NextResponse.json({ error: 'Failed to create producer user' }, { status: 500 });
+          }
+          
+          console.log('New producer user created with ID:', user.id);
+        } else {
+          return NextResponse.json({ error: 'User not found and role not specified' }, { status: 404 });
         }
       }
     }
     
-    if (!user) {
-      console.log('User not found in database');
-      
-      // Return more helpful information for debugging
-      const walletAddress = request.headers.get('x-wallet-address');
-      const cookieAddress = request.cookies.get('walletAddress')?.value;
-      
-      const responseBody = { 
-        error: 'User not found',
-        detail: `No user found for the provided credentials`,
-        lookup: {
-          method: usedMethod || 'none',
-          identifier: identifier || 'none',
-          tokenId: token?.id || 'No token ID',
-          headerAddress: walletAddress || 'No header address',
-          cookieAddress: cookieAddress || 'No cookie address',
-          env: process.env.NODE_ENV || 'unknown'
-        }
-      };
-      
-      console.log('User lookup failed with details:', responseBody);
-      
-      return NextResponse.json(responseBody, { status: 404 });
-    }
-
-    console.log('User found:', {
-      id: user.id,
-      role: user.role,
-      onboarding_completed: user.onboarding_completed
-    });
-    
-    // Set cache control headers to help reduce repeated requests
-    // Use shorter cache times in production to prevent stale data issues
-    const maxAge = process.env.NODE_ENV === 'production' ? 5 : 10;
-    
-    return NextResponse.json({ user }, { 
-      status: 200,
-      headers: {
-        'Cache-Control': `private, max-age=${maxAge}`, // Cache for 5-10 seconds in the client
-        'Vary': 'Cookie', // Ensure responses vary by cookie to prevent caching issues
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching current user:', error);
+    // Return the user data
     return NextResponse.json({ 
-      error: 'Failed to fetch user',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      env: process.env.NODE_ENV
-    }, { status: 500 });
+      user: {
+        id: user.id,
+        address: user.address,
+        role: user.role,
+        profile_data: user.profile_data,
+        onboarding_completed: user.onboarding_completed,
+        onboarding_step: user.onboarding_step,
+        created_at: user.created_at
+      } 
+    }, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+    return NextResponse.json({ error: 'Failed to fetch user data' }, { status: 500 });
+  }
+}
+
+// Helper function to create a user
+async function createUser(walletAddress: string, role: string) {
+  try {
+    const userId = uuidv4();
+    
+    // Set default profile data based on role
+    const defaultProfileData = role === 'writer' ? {
+      name: '',
+      bio: '',
+      genres: []
+    } : {
+      company_name: '',
+      bio: ''
+    };
+    
+    // Create a new user
+    const newUser = new User({
+      id: userId,
+      address: walletAddress.toLowerCase(),
+      role,
+      profile_data: defaultProfileData,
+      onboarding_completed: false,
+      onboarding_step: 0,
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+    
+    await newUser.save();
+    return newUser;
+  } catch (error) {
+    console.error('Error creating user:', error);
+    return null;
   }
 }
 
 // PUT /api/users/me - Update current user
 async function updateUserHandler(request: NextRequest) {
   try {
-    // Check authentication via NextAuth
-    const token = await getToken({ req: request as any });
-    
     // Connect to the database
     await connectToDatabase();
     
     let user = null;
     let userIdentifier = '';
     
-    // Try to get user from token
-    if (token && token.id) {
-      console.log('Finding user by token id:', token.id);
-      user = await User.findOne({ id: token.id });
-      userIdentifier = token.id;
+    // Try to get user from wallet address in header
+    const walletAddress = request.headers.get('x-wallet-address');
+    if (walletAddress) {
+      // Normalize wallet address to lowercase for consistent lookup
+      const normalizedAddress = walletAddress.toLowerCase();
+      console.log('Finding user by wallet address from header:', normalizedAddress);
+      user = await User.findOne({ address: normalizedAddress });
+      userIdentifier = normalizedAddress;
     }
     
-    // If no user found by token id, try to use wallet address from header
+    // If no user found by header, try cookie
     if (!user) {
-      // Check for wallet address in headers (for direct wallet connections)
-      const walletAddress = request.headers.get('x-wallet-address');
-      
-      if (walletAddress) {
-        console.log('Finding user by wallet address from header:', walletAddress);
-        user = await User.findOne({ address: walletAddress });
-        userIdentifier = walletAddress;
-      }
-      
-      // If still no user, check cookies
-      if (!user) {
-        const cookieAddress = request.cookies.get('walletAddress')?.value;
-        if (cookieAddress) {
-          console.log('Finding user by wallet address from cookie:', cookieAddress);
-          user = await User.findOne({ address: cookieAddress });
-          userIdentifier = cookieAddress;
-        }
+      const cookieAddress = request.cookies.get('walletAddress')?.value;
+      if (cookieAddress) {
+        // Normalize wallet address to lowercase for consistent lookup
+        const normalizedAddress = cookieAddress.toLowerCase();
+        console.log('Finding user by wallet address from cookie:', normalizedAddress);
+        user = await User.findOne({ address: normalizedAddress });
+        userIdentifier = normalizedAddress;
       }
     }
     
@@ -173,68 +185,40 @@ async function updateUserHandler(request: NextRequest) {
     const { profile_data, role } = await request.json();
     console.log('Updating profile data for user:', user.id, 'with data:', JSON.stringify(profile_data));
     
-    // If role is provided and different from current role, reject the request
-    if (role && role !== user.role) {
-      return NextResponse.json({ 
-        error: 'Role change not allowed', 
-        message: `You cannot change your role from ${user.role} to ${role}. Each wallet can only have one role.`
-      }, { status: 403 });
+    // Update profile data if provided
+    if (profile_data) {
+      // Merge with existing profile data to preserve fields not included in the update
+      user.profile_data = {
+        ...user.profile_data,
+        ...profile_data
+      };
     }
     
-    // Merge the new profile data with existing data to preserve fields
-    const updatedProfileData = {
-      ...user.profile_data,
-      ...profile_data
-    };
-    
-    console.log('Merged profile data:', updatedProfileData);
-    
-    // Update user document
-    const updatedUser = await User.findByIdAndUpdate(
-      user._id,
-      { 
-        $set: { 
-          profile_data: updatedProfileData,
-          // Also mark onboarding as completed if it wasn't already
-          ...(user.onboarding_completed ? {} : { onboarding_completed: true })
-        } 
-      },
-      { new: true, runValidators: true }
-    );
-    
-    if (!updatedUser) {
-      console.error('Failed to update user:', user._id);
-      return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
+    // Update role if provided
+    if (role && ['writer', 'producer', 'admin'].includes(role)) {
+      user.role = role;
     }
     
-    console.log('Updated user profile successfully:', updatedUser.id);
+    // Save the user
+    user.updated_at = new Date();
+    await user.save();
     
-    return NextResponse.json(
-      { 
-        success: true, 
-        message: 'User updated successfully',
-        user: updatedUser 
-      }, 
-      { status: 200 }
-    );
+    return NextResponse.json({ 
+      message: 'User updated successfully',
+      user: {
+        id: user.id,
+        address: user.address,
+        role: user.role,
+        profile_data: user.profile_data
+      }
+    }, { status: 200 });
   } catch (error) {
-    console.error('Error updating user profile:', error);
-    return NextResponse.json({
-      error: 'Failed to update user profile',
+    console.error('Error updating user:', error);
+    return NextResponse.json({ 
+      error: 'Failed to update user',
       message: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
 }
 
-// Update the middleware options for better production handling
-export const GET = withApiMiddleware(getUserHandler, {
-  requireAuth: false, // Handle auth in the handler to support multiple auth methods
-  connectDb: false, // Handle db connection in the handler
-  rateLimitType: 'userMe' // Apply strict rate limits to this frequently called endpoint
-});
-
-export const PUT = withApiMiddleware(updateUserHandler, {
-  requireAuth: false, // Handle auth in the handler
-  connectDb: false, // Handle db connection in the handler
-  rateLimitType: 'default' // Regular rate limits for PUT operations
-}); 
+export const PUT = updateUserHandler; 

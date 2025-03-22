@@ -75,12 +75,22 @@ async function healthCheck(_req: NextRequest) {
     };
     
     // Check AI service (Gemini)
-    const hasGeminiKey = !!SERVER_ENV.GEMINI_API_KEY;
+    const hasGeminiKey = !!ENV.GEMINI_API_KEY;
     let aiClientInitialized = false;
     
     if (hasGeminiKey) {
-      const geminiClient = createGeminiProClient();
-      aiClientInitialized = !!geminiClient;
+      try {
+        const geminiClient = createGeminiProClient();
+        aiClientInitialized = !!geminiClient;
+        
+        // Optionally test the client with a simple request
+        if (geminiClient) {
+          // Quick test to verify connectivity - could be expanded
+          console.log('Gemini client initialized successfully');
+        }
+      } catch (error) {
+        console.error('Failed to initialize Gemini client:', error);
+      }
     }
     
     components.ai = {

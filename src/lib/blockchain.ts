@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { ENV, SERVER_ENV } from './env-config';
+import { GasPriceStrategy, GasOptimizationLevel, prepareGasSettings, trackGasUsage } from './gas-manager';
 
 // Load contract ABIs
 import ScriptNFTABI from '../contracts/ScriptNFT.json';
@@ -41,6 +42,12 @@ export const initBlockchain = async () => {
   // Track initialization attempt
   initializationAttempted = true;
   lastInitializationTime = Date.now();
+  
+  // Skip blockchain validation if environment variable is set
+  if (ENV.SKIP_BLOCKCHAIN_VALIDATION === 'true') {
+    console.log('Blockchain validation skipped due to SKIP_BLOCKCHAIN_VALIDATION flag');
+    return true;
+  }
   
   try {
     // Check if we're in browser or server environment
@@ -350,9 +357,6 @@ export const mintScriptNFT = async (
       throw new Error('Failed to initialize blockchain or Script NFT contract');
     }
     
-    // Import gas manager functions
-    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
-    
     // Convert string submissionId to BigInt
     const submissionIdBigInt = BigInt(submissionId);
     
@@ -435,9 +439,6 @@ export const transferNFTOwnership = async (
       throw new Error('Failed to initialize blockchain or Script NFT contract');
     }
     
-    // Import gas manager functions
-    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
-    
     // Convert string tokenId to BigInt
     const tokenIdBigInt = BigInt(tokenId);
     
@@ -482,77 +483,133 @@ export const transferNFTOwnership = async (
 
 /**
  * Create a new project on the blockchain
+ * @param walletAddress The wallet address of the authenticated user
+ * @param projectHash A unique hash for the project
+ * @returns Promise with transaction result
  */
-export const createProject = async (
-  producerAddress: string,
-  projectHash: string
-) => {
+export const createProject = async (walletAddress: string, projectHash: string) => {
+  if (!walletAddress) {
+    return { 
+      success: false, 
+      error: 'Authentication required. Wallet address not provided.' 
+    };
+  }
+  
   try {
-    const contract = await getProjectRegistryContract();
-    const wallet = await getPlatformWallet();
-    
-    if (!contract || !wallet) {
-      throw new Error('Failed to initialize blockchain or Project Registry contract');
+    // If blockchain validation is skipped, return a mocked success response
+    if (ENV.SKIP_BLOCKCHAIN_VALIDATION === 'true') {
+      console.log('Blockchain project creation skipped due to SKIP_BLOCKCHAIN_VALIDATION flag');
+      return {
+        success: true,
+        projectId: projectHash,
+        transactionHash: `0x${Date.now().toString(16)}mock`,
+        gasUsed: '0',
+        skipped: true
+      };
     }
     
-    // Import gas manager functions
-    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
+    // Initialize blockchain if needed
+    if (!provider || !contractCache.projectRegistry) {
+      const initialized = await initBlockchain();
+      if (!initialized) {
+        return { 
+          success: false, 
+          error: 'Failed to initialize blockchain connection' 
+        };
+      }
+    }
     
-    // Prepare arguments for the function call
-    const args = [projectHash];
+    // Validate that project registry contract is available
+    if (!contractCache.projectRegistry) {
+      return { 
+        success: false, 
+        error: 'Project registry contract not initialized' 
+      };
+    }
     
-    // Use gas manager to get optimal gas settings
+    console.log(`Creating project on blockchain for wallet ${walletAddress} with hash ${projectHash}`);
+    
+    // Get the contract instance
+    const contract = contractCache.projectRegistry;
+    
+    // Convert the project hash to bytes32 format
+    // Use ethers.js utilities to convert string to bytes32
+    let bytes32Hash;
+    try {
+      // If hash is already in bytes32 format, use it directly
+      if (projectHash.startsWith('0x') && projectHash.length === 66) {
+        bytes32Hash = projectHash;
+      } else {
+        // If it's a string, convert to bytes32
+        // First, convert to UTF-8 bytes
+        const utf8Bytes = ethers.toUtf8Bytes(projectHash);
+        
+        // Then hash it to ensure it's exactly 32 bytes (use keccak256)
+        bytes32Hash = ethers.keccak256(utf8Bytes);
+      }
+      
+      console.log(`Converted project hash to bytes32: ${bytes32Hash}`);
+    } catch (error) {
+      console.error('Error converting project hash to bytes32:', error);
+      return {
+        success: false,
+        error: 'Failed to convert project hash to blockchain format'
+      };
+    }
+    
+    // Prepare gas settings for the transaction
     const gasSettings = await prepareGasSettings(
       contract,
       'createProject',
-      args,
+      [bytes32Hash], // Use the converted bytes32 hash
       {
-        gasStrategy: GasPriceStrategy.STANDARD // Standard priority for project creation
+        gasStrategy: GasPriceStrategy.FAST,
+        optimizationLevel: GasOptimizationLevel.MODERATE
       }
     );
     
-    // Create project with optimized gas settings
-    const tx = await contract.createProject(
-      ...args,
-      gasSettings
-    );
+    // Create project using platform wallet for gas
+    const contractWithSigner = platformWallet 
+      ? contract.connect(platformWallet) 
+      : contract;
     
-    // Wait for transaction to be mined
-    const receipt = await tx.wait();
+    // Call the createProject function using the correct signature (only projectHash)
+    let tx;
     
-    // Track gas usage for analytics and future optimization
-    await trackGasUsage(receipt.hash, 'createProject', gasSettings.gasLimit || BigInt(0));
-    
-    // Find the project ID from the event
-    let projectId = null;
-    for (const log of receipt.logs) {
-      try {
-        const parsedLog = contract.interface.parseLog(log);
-        if (parsedLog && parsedLog.name === 'ProjectCreated') {
-          projectId = parsedLog.args.projectId;
-          break;
-        }
-      } catch {
-        // Skip logs that can't be parsed
-        continue;
+    try {
+      // Call with the correct signature - only bytes32Hash
+      tx = await contractWithSigner.getFunction('createProject')(
+        bytes32Hash, // Use bytes32 hash
+        gasSettings
+      );
+    } catch (error: any) {
+      console.error('Error calling createProject function:', error);
+      
+      // Try with just the hash as fallback
+      if (error.message && error.message.includes('incorrect arguments')) {
+        console.log('First signature attempt failed, trying minimal signature');
+        tx = await contractWithSigner.getFunction('createProject')(bytes32Hash); // Use bytes32 hash
+      } else {
+        throw error;
       }
     }
     
-    if (!projectId) {
-      throw new Error('Project creation event not found in transaction logs');
-    }
+    console.log('Project creation transaction submitted:', tx.hash);
     
+    // Record gas usage for optimization
+    trackGasUsage(tx.hash, 'createProject', gasSettings.gasLimit || BigInt(0));
+    
+    // Return success with transaction hash
     return {
       success: true,
-      projectId: projectId.toString(),
-      transactionHash: receipt.hash,
-      gasUsed: receipt.gasUsed.toString()
+      transactionHash: tx.hash,
+      projectId: projectHash // Keep using original projectHash as ID
     };
   } catch (error) {
-    console.error('Failed to create project:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+    console.error('Error creating project on blockchain:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error creating project' 
     };
   }
 };
@@ -584,9 +641,6 @@ export const fundProjectEscrow = async (
         error: 'Failed to initialize blockchain connection'
       };
     }
-
-    // Import gas manager functions
-    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
 
     // Convert amount to wei (assuming amount is in ETH)
     const amountInWei = ethers.parseEther(amount);
@@ -653,9 +707,6 @@ export const releasePayment = async (
     if (!contract || !wallet) {
       throw new Error('Failed to initialize blockchain or Escrow Manager contract');
     }
-    
-    // Import gas manager functions
-    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
     
     // Convert string submissionId to BigInt
     const submissionIdBigInt = BigInt(submissionId);
@@ -739,10 +790,15 @@ export const getTransactionStatus = async (txHash: string) => {
     const maxFeePerGas = tx?.maxFeePerGas?.toString() ?? 'N/A';
     const maxPriorityFeePerGas = tx?.maxPriorityFeePerGas?.toString() ?? 'N/A';
     
+    // Since confirmations can be a number or a function in ethers v6, handle it safely
+    const confirmations = typeof receipt.confirmations === 'number' ? 
+      receipt.confirmations : 
+      1; // Default to 1 if we can't determine the exact number
+    
     return {
       success: true,
       status: receipt.status ? 'confirmed' : 'failed',
-      confirmations: receipt.confirmations,
+      confirmations,
       blockNumber: receipt.blockNumber,
       gasUsed: receipt.gasUsed.toString(),
       gasPrice,
@@ -785,9 +841,6 @@ export const refundProducer = async (
         error: 'Failed to initialize blockchain connection'
       };
     }
-
-    // Import gas manager functions
-    const { prepareGasSettings, GasPriceStrategy, trackGasUsage } = await import('./gas-manager');
 
     // Get current funds in escrow for the project
     const funds = await contract.getProjectFunds(projectId);

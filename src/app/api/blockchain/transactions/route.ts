@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { withAuth } from '@/lib/auth-middleware';
+import { withApiMiddleware } from '@/lib/api-middleware';
 import connectToDatabase from '@/lib/mongodb';
 import { Transaction, Submission, Script, User } from '@/models';
 import { IUser } from '@/models/User';
@@ -17,7 +17,7 @@ import EscrowManagerABI from '@/contracts/EscrowManager.json';
 type TransactionType = 'script_purchase' | 'nft_minting';
 
 // GET /api/blockchain/transactions - Get transactions for the authenticated user
-export const GET = withAuth(async (req: NextRequest, user: IUser) => {
+export const GET = withApiMiddleware(async (req: NextRequest, { user }) => {
   try {
     await connectToDatabase();
     
@@ -67,7 +67,7 @@ export const GET = withAuth(async (req: NextRequest, user: IUser) => {
 }, {});
 
 // POST /api/blockchain/transactions - Create a new blockchain transaction
-export const POST = withAuth(async (req: NextRequest, user: IUser) => {
+export const POST = withApiMiddleware(async (req: NextRequest, { user }) => {
   try {
     const body = await req.json();
     const transaction_type = body.transaction_type as TransactionType;

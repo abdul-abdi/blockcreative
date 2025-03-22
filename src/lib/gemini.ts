@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { ENV } from './env-config';
 
 // Simple in-memory cache for AI results
 // In production, consider Redis or another distributed cache
@@ -24,7 +25,7 @@ const BASE_RETRY_DELAY = 1000;
  * @returns Gemini Pro client or null if API key is missing
  */
 export function createGeminiProClient() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = ENV.GEMINI_API_KEY;
   
   if (!apiKey) {
     console.error('Gemini API key is not defined. Please set the GEMINI_API_KEY environment variable.');
@@ -35,8 +36,8 @@ export function createGeminiProClient() {
     // Initialize the API client
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Get the Gemini Pro model
-    const geminiPro = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Get the Gemini model - updated to use a current model name
+    const geminiPro = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     
     return geminiPro;
   } catch (error) {
@@ -91,10 +92,18 @@ export async function generateContent(
 }
 
 // API key from environment variables
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = ENV.GEMINI_API_KEY;
 
-// Initialize the Gemini API client
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY || '');
+// Initialize the Gemini API client - Only if API key is available
+let genAI: GoogleGenerativeAI | null = null;
+
+if (GEMINI_API_KEY) {
+  try {
+    genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  } catch (error) {
+    console.error('Failed to initialize Gemini client:', error);
+  }
+}
 
 // Configure the Gemini model
 const modelConfig = {
@@ -237,7 +246,11 @@ export async function analyzeScript(
     }
     
     // Initialize the model
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro', ...modelConfig });
+    const model = genAI?.getGenerativeModel({ model: 'gemini-1.5-flash', ...modelConfig });
+    
+    if (!model) {
+      throw new Error('Failed to initialize Gemini model');
+    }
     
     // Create the prompt for script analysis
     const requirementsText = requirements.length > 0
@@ -382,7 +395,11 @@ export async function generateSynopsis(
     // We'd create a synopsisCache similar to analysisCache
     
     // Initialize the model
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro', ...modelConfig });
+    const model = genAI?.getGenerativeModel({ model: 'gemini-1.5-flash', ...modelConfig });
+    
+    if (!model) {
+      throw new Error('Failed to initialize Gemini model');
+    }
     
     // Create the prompt for synopsis generation - optimized for free Gemini API
     const titleContext = existingTitle 

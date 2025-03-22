@@ -52,54 +52,74 @@ ${scriptContent.substring(0, 15000)}`;  // Limit content size
 ${projectRequirements.join('\n')}`;
     }
     
-    // Get response from Gemini
-    const response = await gemini.generateContent(prompt);
-    const textResponse = response.response.text();
-    
-    // Extract the analysis components
-    // This is a simple implementation and might need refinement
-    const overallMatch = textResponse.match(/Overall quality score.*?(\d+)/i);
-    const creativityMatch = textResponse.match(/Creativity score.*?(\d+)/i);
-    const structureMatch = textResponse.match(/Structure score.*?(\d+)/i);
-    const characterMatch = textResponse.match(/Character development score.*?(\d+)/i);
-    const marketabilityMatch = textResponse.match(/Marketability score.*?(\d+)/i);
-    
-    // Extract detailed analysis - this is a simplistic approach
-    const analysisMatch = textResponse.match(/detailed analysis[^:]*:(.*?)(?=strengths:)/i);
-    
-    // Extract strengths
-    const strengthsSection = textResponse.match(/strengths[^:]*:(.*?)(?=areas|improvements|weaknesses)/i);
-    const strengths = strengthsSection ? extractListItems(strengthsSection[1]) : [];
-    
-    // Extract weaknesses/improvements
-    const weaknessesSection = textResponse.match(/(?:areas|improvements|weaknesses)[^:]*:(.*?)(?=keywords|tags)/i);
-    const weaknesses = weaknessesSection ? extractListItems(weaknessesSection[1]) : [];
-    
-    // Extract keywords
-    const keywordsSection = textResponse.match(/(?:keywords|tags)[^:]*:(.*)/i);
-    const keywords = keywordsSection ? extractListItems(keywordsSection[1]) : [];
-    
-    const analysis: AIScriptAnalysis = {
-      overall: overallMatch ? parseInt(overallMatch[1]) : 50,
-      creativity: creativityMatch ? parseInt(creativityMatch[1]) : 50,
-      structure: structureMatch ? parseInt(structureMatch[1]) : 50,
-      character_development: characterMatch ? parseInt(characterMatch[1]) : 50,
-      marketability: marketabilityMatch ? parseInt(marketabilityMatch[1]) : 50,
-      analysis: analysisMatch ? analysisMatch[1].trim() : textResponse.substring(0, 500),
-      strengths: strengths,
-      weaknesses: weaknesses,
-      keywords: keywords
-    };
-    
-    return {
-      success: true,
-      result: analysis
-    };
+    try {
+      // Get response from Gemini
+      const response = await gemini.generateContent(prompt);
+      const textResponse = response.response.text();
+      
+      // Extract the analysis components
+      // This is a simple implementation and might need refinement
+      const overallMatch = textResponse.match(/Overall quality score.*?(\d+)/i);
+      const creativityMatch = textResponse.match(/Creativity score.*?(\d+)/i);
+      const structureMatch = textResponse.match(/Structure score.*?(\d+)/i);
+      const characterMatch = textResponse.match(/Character development score.*?(\d+)/i);
+      const marketabilityMatch = textResponse.match(/Marketability score.*?(\d+)/i);
+      
+      // Find the detailed analysis section (typically between scores and strengths)
+      const analysisMatch = textResponse.match(/(?:detailed analysis|analysis):(.*?)(?:strengths:|main strengths:|list of.*?strengths:|keywords:|tags:)/is);
+      
+      // Find strengths (look for a list format)
+      const strengthsText = textResponse.match(/(?:strengths:|main strengths:|list of.*?strengths:)(.*?)(?:weaknesses:|areas.*?improved:|list of.*?weaknesses:|keywords:|tags:)/is);
+      const strengths = strengthsText ? strengthsText[1].split(/\r?\n/)
+        .map(line => line.replace(/^[•*\-]\s*/, '').trim())
+        .filter(line => line.length > 0)
+        .slice(0, 5) : [];
+      
+      // Find weaknesses/areas to improve
+      const weaknessesText = textResponse.match(/(?:weaknesses:|areas.*?improved:|list of.*?weaknesses:|improve:|improvement:)(.*?)(?:keywords:|tags:|$)/is);
+      const weaknesses = weaknessesText ? weaknessesText[1].split(/\r?\n/)
+        .map(line => line.replace(/^[•*\-]\s*/, '').trim())
+        .filter(line => line.length > 0)
+        .slice(0, 5) : [];
+      
+      // Find keywords/tags
+      const keywordsText = textResponse.match(/(?:keywords:|tags:)(.*?)(?:$)/is);
+      const keywords = keywordsText ? keywordsText[1].split(/[,\r\n]/)
+        .map(keyword => keyword.replace(/^[•*\-]\s*/, '').trim())
+        .filter(keyword => keyword.length > 0)
+        .slice(0, 8) : [];
+      
+      // Construct the analysis result
+      const analysisResult: AIScriptAnalysis = {
+        overall: overallMatch ? parseInt(overallMatch[1], 10) : 75,
+        creativity: creativityMatch ? parseInt(creativityMatch[1], 10) : 70,
+        structure: structureMatch ? parseInt(structureMatch[1], 10) : 70,
+        character_development: characterMatch ? parseInt(characterMatch[1], 10) : 70,
+        marketability: marketabilityMatch ? parseInt(marketabilityMatch[1], 10) : 70,
+        analysis: analysisMatch ? analysisMatch[1].trim() : "Analysis failed to extract from the AI response",
+        strengths,
+        weaknesses,
+        keywords
+      };
+      
+      // Apply limits to ensure values are within range 
+      // Fix TypeScript errors with proper type handling
+      if (analysisResult.overall) analysisResult.overall = Math.min(100, Math.max(0, analysisResult.overall));
+      if (analysisResult.creativity) analysisResult.creativity = Math.min(100, Math.max(0, analysisResult.creativity));
+      if (analysisResult.structure) analysisResult.structure = Math.min(100, Math.max(0, analysisResult.structure));
+      if (analysisResult.character_development) analysisResult.character_development = Math.min(100, Math.max(0, analysisResult.character_development));
+      if (analysisResult.marketability) analysisResult.marketability = Math.min(100, Math.max(0, analysisResult.marketability));
+      
+      return { success: true, result: analysisResult };
+    } catch (error) {
+      console.error('Error from Gemini API:', error);
+      throw error;
+    }
   } catch (error) {
     console.error('Script analysis error:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error analyzing script'
+      error: error instanceof Error ? error.message : 'Unknown error in script analysis'
     };
   }
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import { Project, User } from '@/models';
-import { getToken } from 'next-auth/jwt';
 
 // Utility function to extract project ID from URL
 function getProjectIdFromUrl(url: string): string {
@@ -16,17 +15,36 @@ export async function GET(request: NextRequest) {
   try {
     // Extract the id from the URL
     const id = getProjectIdFromUrl(request.url);
+    console.log(`Fetching project with ID: ${id}`);
     
     // Connect to the database
     await connectToDatabase();
 
-    // Get project by ID
-    const project = await Project.findOne({ id }).select('-__v');
+    // Build query conditions to check multiple ID formats
+    const queryConditions: Record<string, any>[] = [
+      { id: id },
+      { projectId: id }
+    ];
+    
+    // Only add _id condition if it's a valid ObjectId
+    const mongoose = await import('mongoose');
+    if (mongoose.isValidObjectId(id)) {
+      queryConditions.push({ _id: id });
+    }
+    
+    console.log('Project query conditions:', JSON.stringify(queryConditions));
+    
+    // Get project by ID with multiple possible ID fields
+    const project = await Project.findOne({ 
+      $or: queryConditions 
+    }).select('-__v');
     
     if (!project) {
+      console.log(`Project not found with ID: ${id}`);
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
+    console.log(`Found project: ${project.title}, ID: ${project.id}`);
     return NextResponse.json({ project }, { status: 200 });
   } catch (error) {
     console.error(`Error fetching project:`, error);
@@ -40,14 +58,20 @@ export async function PUT(request: NextRequest) {
     // Extract the id from the URL
     const id = getProjectIdFromUrl(request.url);
     
-    // Check authentication
-    const token = await getToken({ req: request as any });
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Check authentication via wallet address
+    const walletAddress = request.headers.get('x-wallet-address');
+    if (!walletAddress) {
+      return NextResponse.json({ error: 'Unauthorized - wallet address required' }, { status: 401 });
     }
 
     // Connect to the database
     await connectToDatabase();
+    
+    // Get the user by wallet address
+    const user = await User.findOne({ address: walletAddress.toLowerCase() });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
     
     // Get project
     const project = await Project.findOne({ id });
@@ -57,18 +81,32 @@ export async function PUT(request: NextRequest) {
     }
     
     // Check if user is the project owner or admin
-    if (project.producer_id !== token.id && token.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (project.producer_id !== user.id && user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden - you do not have permission to update this project' }, { status: 403 });
     }
     
     const body = await request.json();
     
     // Update allowed fields
-    const allowedFields = ['title', 'description', 'requirements', 'status'];
+    const allowedFields = [
+      'title', 
+      'description', 
+      'requirements', 
+      'status',
+      'budget',
+      'deadline',
+      'genre',
+      'type'
+    ];
     
     allowedFields.forEach(field => {
       if (body[field] !== undefined) {
-        project[field] = body[field];
+        // Special handling for deadline to convert to Date
+        if (field === 'deadline' && body[field]) {
+          project[field] = new Date(body[field]);
+        } else {
+          project[field] = body[field];
+        }
       }
     });
     
@@ -85,20 +123,26 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE /api/projects/[id] - Delete project (admin only)
+// DELETE /api/projects/[id] - Delete project
 export async function DELETE(request: NextRequest) {
   try {
     // Extract the id from the URL
     const id = getProjectIdFromUrl(request.url);
     
-    // Check authentication
-    const token = await getToken({ req: request as any });
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Check authentication via wallet address
+    const walletAddress = request.headers.get('x-wallet-address');
+    if (!walletAddress) {
+      return NextResponse.json({ error: 'Unauthorized - wallet address required' }, { status: 401 });
     }
 
     // Connect to the database
     await connectToDatabase();
+    
+    // Get the user by wallet address
+    const user = await User.findOne({ address: walletAddress.toLowerCase() });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
     
     // Get project
     const project = await Project.findOne({ id });
@@ -108,13 +152,12 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Check if user is the project owner or admin
-    if (project.producer_id !== token.id && token.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    if (project.producer_id !== user.id && user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden - you do not have permission to delete this project' }, { status: 403 });
     }
     
-    // Only allow deletion if project has no submissions
-    // This would require checking the submissions collection
-    // For now, we'll just delete the project
+    // Only allow deletion if project has no submissions or is in draft status
+    // This check could be enhanced based on application requirements
     
     await Project.deleteOne({ id });
     

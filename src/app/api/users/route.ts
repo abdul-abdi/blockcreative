@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import { User } from '@/models';
-import { getToken } from 'next-auth/jwt';
+import { v4 as uuidv4 } from 'uuid';
 
 // GET /api/users - Get all users or filtered list
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const token = await getToken({ req: request as any });
-    if (!token) {
+    // Check authentication via wallet address
+    const walletAddress = request.headers.get('x-wallet-address') || 
+                          request.cookies.get('walletAddress')?.value;
+    
+    if (!walletAddress) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Connect to the database
     await connectToDatabase();
+    
+    // Verify user exists with this wallet address
+    const authUser = await User.findOne({ address: walletAddress });
+    if (!authUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     // Get query parameters for filtering
     const searchParams = request.nextUrl.searchParams;
@@ -53,104 +61,107 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/users - Create new user (typically from Reown)
+// POST /api/users - Create a new user
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const walletAddress = body.address || request.headers.get('x-wallet-address');
-    const userRole = body.role || 'writer'; // Default to writer if no role specified
-    
+    // Connect to the database
+    await connectToDatabase();
+
+    // Parse request body
+    const { appkitId, walletAddress, email, role, profile_data } = await request.json();
+
+    // Ensure we have a wallet address
     if (!walletAddress) {
       return NextResponse.json({ 
-        error: 'Wallet address is required',
-        message: 'Please provide a wallet address to create a user'
+        error: 'Wallet address is required' 
       }, { status: 400 });
     }
     
-    // Connect to the database
-    await connectToDatabase();
+    // Normalize wallet address to lowercase
+    const normalizedAddress = walletAddress.toLowerCase();
     
-    // Check if user already exists by wallet address
-    const existingUser = await User.findOne({ address: walletAddress });
+    // Check if user already exists with this wallet address
+    const existingUser = await User.findOne({ address: normalizedAddress });
+    
     if (existingUser) {
-      console.log('User already exists with wallet address:', walletAddress);
-      
-      // Check if the user is trying to register with a different role
-      if (existingUser.role !== userRole) {
+      // If user exists with different role than requested, return error
+      if (existingUser.role !== role) {
         return NextResponse.json({ 
-          error: 'Role conflict',
-          message: `This wallet address is already registered as a ${existingUser.role}. You cannot switch roles.`
-        }, { status: 403 });
+          error: 'User already exists with a different role',
+          message: `This wallet is already registered as a ${existingUser.role}`
+        }, { status: 409 }); // Conflict
+      }
+      
+      // If user exists with same role, update AppKit ID if not already set
+      if (!existingUser.appkit_id && appkitId) {
+        existingUser.appkit_id = appkitId;
+        await existingUser.save();
+        console.log(`Updated existing user ${existingUser.id} with AppKit ID ${appkitId}`);
       }
       
       return NextResponse.json({ 
         message: 'User already exists',
-        user: existingUser 
+        user: {
+          id: existingUser.id,
+          address: existingUser.address,
+          role: existingUser.role,
+          profile_data: existingUser.profile_data,
+          onboarding_completed: existingUser.onboarding_completed
+        }
       }, { status: 200 });
     }
     
-    // Set up default profile data based on role
-    const defaultProfileData = userRole === 'writer' 
-      ? {
-          name: body.profile_data?.name || 'Writer User',
-          bio: body.profile_data?.bio || '',
-          avatar: body.profile_data?.avatar || '',
-          website: body.profile_data?.website || '',
-          writing_experience: body.profile_data?.writing_experience || '',
-          genres: body.profile_data?.genres || [],
-          project_types: body.profile_data?.project_types || [],
-          social: body.profile_data?.social || {
-            twitter: '',
-            linkedin: '',
-            instagram: ''
-          }
-        }
-      : {
-          name: body.profile_data?.name || 'Producer User',
-          bio: body.profile_data?.bio || '',
-          avatar: body.profile_data?.avatar || '',
-          website: body.profile_data?.website || '',
-          company: body.profile_data?.company || 'Production Company',
-          industry: body.profile_data?.industry || 'Entertainment',
-          team_size: body.profile_data?.team_size || '',
-          budget_range: body.profile_data?.budget_range || '',
-          location: body.profile_data?.location || '',
-          phone: body.profile_data?.phone || '',
-          social: body.profile_data?.social || {
-            twitter: '',
-            linkedin: '',
-            instagram: ''
-          }
-        };
+    // Log user creation
+    console.log(`Creating new user with wallet address: ${normalizedAddress}, AppKit ID: ${appkitId || 'none'}`);
     
-    // Merge provided profile data with defaults
-    const profileData = {
-      ...defaultProfileData,
-      ...(body.profile_data || {})
+    // Generate a unique ID for the user
+    const userId = uuidv4();
+    
+    // Set up default profile data based on role
+    const defaultProfileData = role === 'writer' ? {
+      name: '',
+      bio: '',
+      genres: [],
+      profile_image: ''
+    } : {
+      company_name: '',
+      company: '',
+      bio: '',
+      profile_image: ''
     };
     
-    // Create new user with explicit onboarding status
+    // Merge provided profile data with defaults
+    const mergedProfileData = {
+      ...defaultProfileData,
+      ...(profile_data || {})
+    };
+    
+    // Create a new user
     const newUser = new User({
-      id: body.id || `user_${Date.now()}`,
-      address: walletAddress,
-      role: userRole,
+      id: userId,
+      appkit_id: appkitId,
+      address: normalizedAddress,
+      email,
+      role,
+      profile_data: mergedProfileData,
+      onboarding_completed: false,
+      onboarding_step: 0,
       created_at: new Date(),
-      profile_data: profileData,
-      onboarding_completed: body.onboarding_completed === true ? true : false,
-      onboarding_step: body.onboarding_step || 0
+      updated_at: new Date()
     });
     
+    // Save the user
     await newUser.save();
-    
-    console.log(`New ${userRole} created with address ${walletAddress}:`, {
-      id: newUser.id,
-      onboarding_completed: newUser.onboarding_completed,
-      profile_fields: Object.keys(profileData)
-    });
     
     return NextResponse.json({ 
       message: 'User created successfully',
-      user: newUser 
+      user: {
+        id: newUser.id,
+        address: newUser.address,
+        role: newUser.role,
+        profile_data: newUser.profile_data,
+        onboarding_completed: newUser.onboarding_completed
+      }
     }, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);

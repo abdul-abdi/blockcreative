@@ -11,7 +11,7 @@ import {
   Cog6ToothIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
-import { useSession } from 'next-auth/react';
+import { useAccount } from 'wagmi';
 
 const steps = [
   {
@@ -35,7 +35,6 @@ const steps = [
 ];
 
 export default function ProducerOnboarding() {
-  const { data: session, status } = useSession();
   const router = useRouter();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [formData, setFormData] = useState({
@@ -86,7 +85,10 @@ export default function ProducerOnboarding() {
 
   // Redirect if not authenticated
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    // Check if wallet is connected or wallet address in localStorage
+    const isAuthenticated = localStorage.getItem('walletAddress');
+    
+    if (!isAuthenticated) {
       router.push('/signin');
     }
     
@@ -109,7 +111,7 @@ export default function ProducerOnboarding() {
         }
       }, 1000);
     }
-  }, [status, router]);
+  }, [router]);
 
   // Fetch user data if it exists
   useEffect(() => {
@@ -128,55 +130,50 @@ export default function ProducerOnboarding() {
         
         if (response.ok) {
           const data = await response.json();
+          
           if (data.user && data.user.role === 'producer') {
             // Pre-fill form with existing data
-            const userData = data.user;
-            console.log('Fetched existing producer data for pre-filling form:', userData);
-            
-            if (userData.profile_data) {
-              const pd = userData.profile_data;
+            if (data.user.profile_data) {
+              const profileData = data.user.profile_data;
+              
+              // Update form data with user profile information
               setFormData({
-                name: pd.name || '',
-                bio: pd.bio || '',
-                avatar: pd.avatar || '',
-                company_name: pd.company || '',
-                company_website: pd.website || '',
-                team_size: pd.team_size || '',
-                budget_range: pd.budget_range || '',
-                industry: pd.industry || 'Entertainment',
-                location: pd.location || '',
-                phone: pd.phone || '',
-                project_types: pd.project_types || [],
-                genres: pd.genres || [],
-                social: pd.social || {
-                  twitter: '',
-                  linkedin: '',
-                  instagram: ''
+                name: profileData.name || '',
+                bio: profileData.bio || '',
+                avatar: profileData.avatar || '',
+                company_name: profileData.company_name || profileData.company || '',
+                company_website: profileData.company_website || profileData.website || '',
+                team_size: profileData.team_size || '',
+                project_types: profileData.project_types || [],
+                budget_range: profileData.budget_range || '',
+                industry: profileData.industry || '',
+                location: profileData.location || '',
+                phone: profileData.phone || '',
+                genres: profileData.genres || [],
+                social: {
+                  twitter: profileData.social?.twitter || '',
+                  linkedin: profileData.social?.linkedin || '',
+                  instagram: profileData.social?.instagram || ''
                 }
               });
             }
             
             // If onboarding is already completed, redirect to dashboard
-            if (userData.onboarding_completed) {
-              console.log('Producer onboarding already completed, redirecting to dashboard');
+            if (data.user.onboarding_completed) {
+              console.log('Onboarding already completed, redirecting to dashboard');
               router.push('/producer/dashboard');
             }
           }
-        } else if (response.status !== 404) {
-          // Only show error for unexpected errors, not 404 (which is expected for new users)
-          console.error('Error fetching producer data:', await response.text());
-        } else {
-          console.log('No existing producer found with this wallet address - continuing with onboarding as new user');
         }
       } catch (error) {
-        console.error('Error fetching producer data:', error);
+        console.error('Error fetching user data:', error);
       }
     };
     
-    if (status !== 'loading' && !isRedirecting) {
+    if (!isRedirecting) {
       fetchUserData();
     }
-  }, [status, router, isRedirecting]);
+  }, [isRedirecting, router]);
 
   const currentStep = steps[currentStepIndex];
 
@@ -271,141 +268,60 @@ export default function ProducerOnboarding() {
   };
 
   const handleSubmit = async () => {
-    if (!validateCurrentStep()) return;
-    
     try {
       setIsSubmitting(true);
       setError(null);
       
-      // Get connected wallet address if available
-      const connectedAddress = localStorage.getItem('walletAddress');
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Add wallet address to headers if available
-      if (connectedAddress) {
-        headers['x-wallet-address'] = connectedAddress;
-        console.log('Using wallet address for producer onboarding:', connectedAddress);
-      } else {
-        console.error('No wallet address found in localStorage');
-        setError('No wallet address found. Please connect your wallet again.');
-        setIsSubmitting(false);
-        return;
+      const walletAddress = localStorage.getItem('walletAddress');
+      if (!walletAddress) {
+        throw new Error('No wallet address available');
       }
       
-      // Prepare complete producer profile data
-      const producerData = {
-        name: formData.name,
-        bio: formData.bio,
-        avatar: formData.avatar || '',
-        company_name: formData.company_name,
-        company_website: formData.company_website || '',
-        team_size: formData.team_size || '',
-        budget_range: formData.budget_range || '',
-        industry: formData.industry || 'Entertainment',
-        location: formData.location || '',
-        phone: formData.phone || '',
-        social: formData.social || { twitter: '', linkedin: '', instagram: '' }
-      };
-      
-      console.log('Submitting producer onboarding data:', producerData);
-      
-      // First, check if user exists already
-      const checkResponse = await fetch('/api/users/me', {
-        headers
+      // Update profile data
+      const response = await fetch('/api/users/me/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-wallet-address': walletAddress
+        },
+        body: JSON.stringify({
+          profile_data: {
+            name: formData.name,
+            bio: formData.bio,
+            avatar: formData.avatar,
+            company: formData.company_name,
+            website: formData.company_website,
+            team_size: formData.team_size,
+            project_types: formData.project_types,
+            budget_range: formData.budget_range,
+            industry: formData.industry,
+            location: formData.location,
+            phone: formData.phone,
+            genres: formData.genres,
+            social: formData.social
+          },
+          onboarding_completed: true,
+          onboarding_step: 3
+        })
       });
       
-      let shouldCreateUser = false;
-      
-      if (checkResponse.status === 404) {
-        console.log('Producer not found in database, will create during onboarding');
-        shouldCreateUser = true;
-      } else if (!checkResponse.ok) {
-        console.error('Error checking producer existence:', await checkResponse.text());
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save onboarding data');
       }
       
-      // If user doesn't exist, create them first
-      if (shouldCreateUser) {
-        console.log('Creating new producer account before onboarding...');
-        const createResponse = await fetch('/api/users', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            address: connectedAddress,
-            role: 'producer',
-            profile_data: producerData,
-            onboarding_completed: false
-          })
-        });
-        
-        if (!createResponse.ok) {
-          const errorData = await createResponse.json();
-          console.error('Error creating producer account:', errorData);
-          throw new Error(errorData.error || errorData.message || 'Failed to create producer account');
-        }
-        
-        console.log('Successfully created new producer account');
-      }
-      
-      // First, save the profile data
-      console.log('Submitting to producer onboarding API...');
-      const profileResponse = await fetch('/api/onboarding/producer', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(producerData)
-      });
-      
-      if (!profileResponse.ok) {
-        const errorData = await profileResponse.json();
-        console.error('Producer onboarding API error:', errorData);
-        throw new Error(errorData.error || errorData.message || 'Failed to complete producer onboarding');
-      }
-      
-      const responseData = await profileResponse.json();
-      console.log('Producer onboarding response:', responseData);
-      
-      // Save user data in localStorage for persistence
-      localStorage.setItem('userName', formData.name);
-      localStorage.setItem('userCompany', formData.company_name);
-      
-      // Then, mark onboarding as complete
-      console.log('Marking producer onboarding as complete...');
-      const completeResponse = await fetch('/api/onboarding/complete', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ role: 'producer' })
-      });
-      
-      if (!completeResponse.ok) {
-        const errorData = await completeResponse.json();
-        console.error('Complete API error:', errorData);
-        throw new Error(errorData.error || errorData.message || 'Failed to mark producer onboarding as complete');
-      }
-      
-      const completeData = await completeResponse.json();
-      console.log('Complete API response:', completeData);
-      
-      // Set onboarding completed in localStorage as a fallback
+      // Mark onboarding as complete in localStorage
       localStorage.setItem('onboardingCompleted', 'true');
-      localStorage.setItem('userRole', 'producer');
       
-      setSuccess('Producer onboarding completed successfully!');
+      setSuccess('Profile completed successfully!');
       
       // Redirect to dashboard after a short delay
-      console.log('Producer onboarding successful, redirecting to dashboard');
       setTimeout(() => {
         router.push('/producer/dashboard');
       }, 2000);
-    } catch (err) {
-      console.error('Producer onboarding error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      
-      // Retry logic for transient errors
-      if (err instanceof Error && 
-         (err.message.includes('Failed to fetch') || err.message.includes('network'))) {
-        setError('Network error: Please check your connection and try again');
-      }
+    } catch (error: any) {
+      console.error('Error submitting onboarding data:', error);
+      setError(error.message || 'An error occurred while saving your profile');
     } finally {
       setIsSubmitting(false);
     }

@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface ITransaction extends Document {
   id: string;
   transaction_hash: string;
-  transaction_type: 'project_funding' | 'script_purchase' | 'nft_minting';
+  transaction_type: 'project_funding' | 'script_purchase' | 'nft_minting' | 'project_creation';
   user_id: string;
   project_id?: string;
   submission_id?: string;
@@ -19,7 +19,7 @@ const TransactionSchema: Schema = new Schema({
   transaction_hash: { type: String, required: true, unique: true },
   transaction_type: { 
     type: String, 
-    enum: ['project_funding', 'script_purchase', 'nft_minting'], 
+    enum: ['project_funding', 'script_purchase', 'nft_minting', 'project_creation'], 
     required: true 
   },
   user_id: { type: String, required: true, ref: 'User' },

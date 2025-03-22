@@ -6,6 +6,14 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+      },
     ],
   },
   reactStrictMode: true,
@@ -26,6 +34,9 @@ const nextConfig = {
   transpilePackages: ['ethers', 'web3', 'wagmi', 'viem'],
   // App Icon configuration
   webpack(config) {
+    // Add AppKit required externals
+    config.externals.push('pino-pretty', 'lokijs', 'encoding');
+    
     config.module.rules.push({
       test: /\.svg$/,
       use: ['@svgr/webpack'],
