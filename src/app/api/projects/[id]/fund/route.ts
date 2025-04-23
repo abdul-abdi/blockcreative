@@ -14,17 +14,23 @@ export async function POST(
     const url = new URL(request.url);
     const pathParts = url.pathname.split('/');
     const id = pathParts[pathParts.indexOf('projects') + 1];
-    
+
     // Check authentication
     const token = await getToken({ req: request as any });
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get wallet address from headers or cookies
+    const walletAddress = request.headers.get('x-wallet-address') || request.cookies.get('walletAddress')?.value;
+    if (!walletAddress) {
+      return NextResponse.json({ error: 'Wallet address not found' }, { status: 400 });
+    }
+
     // Only producers can fund projects
     if (token.role !== 'producer') {
-      return NextResponse.json({ 
-        error: 'Only producers can fund projects' 
+      return NextResponse.json({
+        error: 'Only producers can fund projects'
       }, { status: 403 });
     }
 
@@ -39,15 +45,15 @@ export async function POST(
 
     // Check if user is the project owner
     if (project.producer_id !== token.id) {
-      return NextResponse.json({ 
-        error: 'You can only fund your own projects' 
+      return NextResponse.json({
+        error: 'You can only fund your own projects'
       }, { status: 403 });
     }
 
     // Check if project is already funded
     if (project.is_funded) {
-      return NextResponse.json({ 
-        error: 'Project is already funded' 
+      return NextResponse.json({
+        error: 'Project is already funded'
       }, { status: 400 });
     }
 
@@ -56,29 +62,29 @@ export async function POST(
     const { amount } = body;
 
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      return NextResponse.json({ 
-        error: 'Valid funding amount is required' 
+      return NextResponse.json({
+        error: 'Valid funding amount is required'
       }, { status: 400 });
     }
 
     // Call blockchain function to fund project escrow
     try {
       if (!token.address) {
-        return NextResponse.json({ 
-          error: 'User wallet address not found' 
+        return NextResponse.json({
+          error: 'User wallet address not found'
         }, { status: 400 });
       }
 
       const fundingResult = await fundProjectEscrow(
-        token.address,
+        walletAddress,
         id,
         amount.toString()
       );
 
       if (!fundingResult.success) {
-        return NextResponse.json({ 
-          error: 'Failed to fund project on blockchain', 
-          message: fundingResult.error 
+        return NextResponse.json({
+          error: 'Failed to fund project on blockchain',
+          message: fundingResult.error
         }, { status: 500 });
       }
 
@@ -113,13 +119,13 @@ export async function POST(
         }
       }, { status: 200 });
     } catch (error: any) {
-      return NextResponse.json({ 
-        error: 'Failed to fund project', 
-        message: error.message 
+      return NextResponse.json({
+        error: 'Failed to fund project',
+        message: error.message
       }, { status: 500 });
     }
   } catch (error) {
     console.error(`Error funding project:`, error);
     return NextResponse.json({ error: 'Failed to fund project' }, { status: 500 });
   }
-} 
+}

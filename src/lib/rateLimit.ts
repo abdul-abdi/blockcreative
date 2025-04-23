@@ -6,11 +6,11 @@
 import { NextRequest } from 'next/server';
 
 // Define rate limit types
-export type RateLimitType = 'default' | 'strict' | 'userMe' | 'auth';
+export type RateLimitType = 'default' | 'strict' | 'userMe' | 'auth' | 'ai' | 'blockchain';
 
 // Define rate limit configuration interface
 export interface RateLimitConfig {
-  windowMs: number; 
+  windowMs: number;
   limit: number;
   message?: string;
 }
@@ -67,9 +67,21 @@ export function configureRateLimits(customLimits?: Record<string, RateLimitConfi
       windowMs: 60 * 1000, // 1 minute
       limit: 20, // 20 requests per minute
       message: 'Too many authentication attempts, please wait before trying again.'
+    },
+    // For AI-related endpoints
+    ai: {
+      windowMs: 60 * 1000, // 1 minute
+      limit: 10, // 10 requests per minute
+      message: 'Too many AI requests, please try again later.'
+    },
+    // For blockchain-related endpoints
+    blockchain: {
+      windowMs: 60 * 1000, // 1 minute
+      limit: 15, // 15 requests per minute
+      message: 'Too many blockchain requests, please try again later.'
     }
   };
-  
+
   return { ...defaults, ...customLimits };
 }
 
@@ -81,13 +93,13 @@ function getClientIp(req: NextRequest): string {
     // Get first IP if multiple are present
     return forwarded.split(',')[0].trim();
   }
-  
+
   // Fallback to CloudFlare headers
   const cfIp = req.headers.get('cf-connecting-ip');
   if (cfIp) {
     return cfIp;
   }
-  
+
   // Fallback to remote address
   return '127.0.0.1'; // Default for local development
 }
@@ -99,23 +111,23 @@ function getClientIp(req: NextRequest): string {
  * @returns Rate limit result
  */
 export async function rateLimit(
-  req: NextRequest, 
+  req: NextRequest,
   options: RateLimitConfig
 ): Promise<RateLimitResult> {
   // Get IP and route path for the rate limit key
   const ip = getClientIp(req);
   const path = new URL(req.url).pathname;
-  
+
   // Allow bypass with API key for internal services
   const apiKey = req.headers.get('x-api-key');
   if (apiKey && apiKey === process.env.INTERNAL_API_KEY) {
     return { success: true, remaining: options.limit };
   }
-  
+
   // Create a key for this specific client and route
   const key = `${ip}:${path}`;
   const now = Date.now();
-  
+
   // Initialize or update rate limit entry
   if (!rateLimitStore[key] || rateLimitStore[key].resetTime <= now) {
     rateLimitStore[key] = {
@@ -124,10 +136,10 @@ export async function rateLimit(
     };
     return { success: true, remaining: options.limit - 1 };
   }
-  
+
   // Increment counter and check if limit exceeded
   rateLimitStore[key].count += 1;
-  
+
   if (rateLimitStore[key].count > options.limit) {
     const retryAfter = Math.ceil((rateLimitStore[key].resetTime - now) / 1000);
     return {
@@ -137,11 +149,11 @@ export async function rateLimit(
       message: options.message || `Rate limit exceeded. Try again in ${retryAfter} seconds.`
     };
   }
-  
+
   return {
     success: true,
     remaining: options.limit - rateLimitStore[key].count
   };
 }
 
-export default rateLimit; 
+export default rateLimit;

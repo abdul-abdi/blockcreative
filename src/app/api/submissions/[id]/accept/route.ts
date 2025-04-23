@@ -24,10 +24,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get wallet address from headers or cookies
+    const walletAddress = request.headers.get('x-wallet-address') || request.cookies.get('walletAddress')?.value;
+    if (!walletAddress) {
+      return NextResponse.json({ error: 'Wallet address not found' }, { status: 400 });
+    }
+
     // Only producers can accept submissions
     if (token.role !== 'producer') {
-      return NextResponse.json({ 
-        error: 'Only producers can accept submissions' 
+      return NextResponse.json({
+        error: 'Only producers can accept submissions'
       }, { status: 403 });
     }
 
@@ -47,22 +53,22 @@ export async function POST(request: NextRequest) {
     }
 
     if (project.producer_id !== token.id) {
-      return NextResponse.json({ 
-        error: 'You can only accept submissions for your own projects' 
+      return NextResponse.json({
+        error: 'You can only accept submissions for your own projects'
       }, { status: 403 });
     }
 
     // Check if project escrow is funded
     if (!project.escrow_funded) {
-      return NextResponse.json({ 
-        error: 'Project escrow must be funded before accepting submissions' 
+      return NextResponse.json({
+        error: 'Project escrow must be funded before accepting submissions'
       }, { status: 400 });
     }
 
     // Check if submission is already accepted
     if (submission.status === 'accepted' || submission.is_purchased) {
-      return NextResponse.json({ 
-        error: 'Submission is already accepted' 
+      return NextResponse.json({
+        error: 'Submission is already accepted'
       }, { status: 400 });
     }
 
@@ -88,22 +94,22 @@ export async function POST(request: NextRequest) {
         );
 
         if (!mintResult.success) {
-          return NextResponse.json({ 
+          return NextResponse.json({
             error: 'Failed to mint NFT for script',
             details: mintResult.error
           }, { status: 500 });
         }
 
         nftTokenId = mintResult.tokenId;
-        
+
         // Update submission with NFT information
         submission.nft_minted = true;
         submission.nft_token_id = nftTokenId;
         await submission.save();
       } catch (error) {
         console.error('Error minting NFT:', error);
-        return NextResponse.json({ 
-          error: 'Failed to mint NFT' 
+        return NextResponse.json({
+          error: 'Failed to mint NFT'
         }, { status: 500 });
       }
     }
@@ -113,12 +119,12 @@ export async function POST(request: NextRequest) {
       const paymentResult = await releasePayment(
         submission.id,
         writer.address,
-        token.address,
+        walletAddress,
         nftTokenId as string
       );
 
       if (!paymentResult.success) {
-        return NextResponse.json({ 
+        return NextResponse.json({
           error: 'Failed to process payment',
           details: paymentResult.error
         }, { status: 500 });
@@ -151,7 +157,7 @@ export async function POST(request: NextRequest) {
         platform_fee_amount: platformFee,
         gas_fee_amount: '0', // Gas fees are handled by platform wallet
         recipient_address: writer.address,
-        sender_address: token.address,
+        sender_address: walletAddress,
         transaction_type: 'script_purchase'
       });
 
@@ -176,14 +182,14 @@ export async function POST(request: NextRequest) {
       }, { status: 200 });
     } catch (error) {
       console.error('Error processing payment:', error);
-      return NextResponse.json({ 
-        error: 'Failed to process payment' 
+      return NextResponse.json({
+        error: 'Failed to process payment'
       }, { status: 500 });
     }
   } catch (error) {
     console.error('Error accepting submission:', error);
-    return NextResponse.json({ 
-      error: 'Failed to accept submission' 
+    return NextResponse.json({
+      error: 'Failed to accept submission'
     }, { status: 500 });
   }
-} 
+}
