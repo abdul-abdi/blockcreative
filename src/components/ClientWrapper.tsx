@@ -26,9 +26,9 @@ export default function ClientWrapper() {
           <Navbar />
           <main className="flex-grow">
             <HeroSection />
-            <div id="story">
+            {/* <div id="story">
               <StorySection />
-            </div>
+            </div> */}
             <div id="benefits">
               <BenefitsSection />
             </div>
