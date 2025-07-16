@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import ContextProvider from '@/context';
 import connectToDatabase from '@/lib/mongodb';
 import ErrorBoundaryWrapper from '@/components/ErrorBoundaryWrapper';
+import { MarketplaceProvider } from '@/context/audio';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -44,7 +45,10 @@ export default async function RootLayout({
             </div>}>
               <ClientInitializer />
               <BlockchainInitializer />
-              {children}
+              <MarketplaceProvider>
+                {children}
+              </MarketplaceProvider>
+             
             </Suspense>
           </ErrorBoundaryWrapper>
         </ContextProvider>
