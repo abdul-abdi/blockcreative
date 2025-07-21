@@ -648,7 +648,7 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
                       </Link>
                     ) : (
                       <Link
-                        href="/writer/submit"
+                        href={marketplace === 'audio'? '/audiomarket/writer/submit':'/writer/submit'}                        
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white hover:opacity-90 flex items-center justify-center gap-2 transition-opacity font-medium"
                       >

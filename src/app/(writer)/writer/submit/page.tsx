@@ -29,6 +29,8 @@ import {
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
+import { useMarketplace } from '@/context/audio';
+
 
 interface Project {
   id: string | number;
@@ -640,10 +642,13 @@ const SubmitScript = () => {
     setError("");
   };
   
+  const {marketplace} = useMarketplace();
   // Similarly update the handleSubmitScript function for consistent auth pattern
   const handleSubmitScript = async () => {
     setIsSubmitting(true);
     setError("");
+
+    const endpoint = marketplace === 'audio' ? '/api/audio/submissions' : '/api/submission'
 
     // Validate required fields
     if (!scriptData.title || !scriptData.genre || !scriptData.content || !scriptData.logline 
@@ -716,7 +721,7 @@ const SubmitScript = () => {
       };
       
       // Use the correct API endpoint from the documentation
-      const response = await fetch("/api/submissions", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers,
         body: JSON.stringify(submissionData),

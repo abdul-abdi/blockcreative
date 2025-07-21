@@ -60,7 +60,7 @@ const genreOptions = [
 
 const settingsSections = [
   { id: 'profile', name: 'Profile Details', icon: UserCircleIcon },
-  { id: 'portfolio', name: 'Portfolio & Skills', icon: DocumentTextIcon },
+  { id: 'portfolio', name: 'Portfolio & Skils', icon: DocumentTextIcon },
   {id: 'kyc', name:'KYC Verification', icon: ShieldCheckIcon},
   { id: 'security', name: 'Security & Account', icon: ShieldCheckIcon },
 ];

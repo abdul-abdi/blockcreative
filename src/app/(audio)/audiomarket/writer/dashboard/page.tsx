@@ -82,7 +82,7 @@ interface StatItem {
   change: string;
   trend: 'up' | 'down' | 'neutral';
   iconType: IconType;
-  color: GradientColor;
+ 
 }
 
 // Default empty data structure
@@ -94,7 +94,7 @@ const emptyStats: StatItem[] = [
     change: '0 this week',
     trend: 'neutral',
     iconType: 'document',
-    color: 'from-purple-500 to-indigo-500',
+    
   },
   {
     id: 'score',
@@ -103,7 +103,7 @@ const emptyStats: StatItem[] = [
     change: '0 points',
     trend: 'neutral',
     iconType: 'chart',
-    color: 'from-emerald-500 to-teal-500',
+   
   },
   {
     id: 'completed',
@@ -112,7 +112,7 @@ const emptyStats: StatItem[] = [
     change: '0 this month',
     trend: 'neutral',
     iconType: 'currency',
-    color: 'from-amber-500 to-orange-500',
+    
   },
   {
     id: 'success',
@@ -121,7 +121,7 @@ const emptyStats: StatItem[] = [
     change: '0% change',
     trend: 'neutral',
     iconType: 'star',
-    color: 'from-pink-500 to-rose-500',
+    
   },
 ];
 
@@ -191,6 +191,34 @@ async function registerWriterUser(walletAddress: string) {
   }
 }
 
+// --- MOCK AUDIO DATA (for audiomarket) ---
+const mockAudioItems = [
+  {
+    id: '1',
+    title: 'The Other Side Of HR',
+    description: 'HR Realities in a Struggling Economy',
+    creator: 'Precious & IbIjoke',
+    createdAt: '1 day ago',
+    cover: '/image1.jpg', // Use a public asset or placeholder
+    duration: '41 mins',
+    downloadUrl: '#',
+    summary: 'Inflation is rising, salaries are not, and HR and Managers are stuck in the middle. Sound fami...'
+  },
+  {
+    id: '2',
+    title: 'The Birth of the First Twins',
+    description: 'A story of the first twins',
+    creator: 'jamit',
+    createdAt: '2 days ago',
+    cover: '/public/globe.svg',
+    duration: '32 mins',
+    downloadUrl: '#',
+    summary: 'A fascinating tale about the first twins in history.'
+  },
+  // Add more mock items as needed
+];
+// --- END MOCK AUDIO DATA ---
+
 export default function WriterDashboard() {
   const [userData, setUserData] = useState<any>(null);
   const [userName, setUserName] = useState('');
@@ -205,7 +233,7 @@ export default function WriterDashboard() {
 
   const { user, isLoading: isUserLoading, mutate } = useUser();
   const router = useRouter();
-  const { setMarketplace } = useMarketplace();
+  const { setMarketplace, marketplace } = useMarketplace();
 
   useEffect(() => {
     setMarketplace('audio');
@@ -215,15 +243,15 @@ export default function WriterDashboard() {
   const renderIcon = (iconType: IconType) => {
     switch (iconType) {
       case 'document':
-        return <DocumentTextIcon className="w-6 h-6 text-white" />;
+        return <DocumentTextIcon className="w-8 h-8 text-white" />;
       case 'chart':
-        return <ChartBarIcon className="w-6 h-6 text-white" />;
+        return <ChartBarIcon className="w-8 h-8 text-white" />;
       case 'currency':
-        return <CurrencyDollarIcon className="w-6 h-6 text-white" />;
+        return <CurrencyDollarIcon className="w-8 h-8 text-white" />;
       case 'star':
-        return <StarIcon className="w-6 h-6 text-white" />;
+        return <StarIcon className="w-8 h-8 text-white" />;
       default:
-        return <DocumentTextIcon className="w-6 h-6 text-white" />;
+        return <DocumentTextIcon className="w-8 h-8 text-white" />;
     }
   };
 
@@ -258,7 +286,7 @@ export default function WriterDashboard() {
         change: `${activeCount > 0 ? '+' + activeCount : '0'} this week`,
         trend: activeCount > 0 ? 'up' : 'neutral',
         iconType: 'document',
-        color: 'from-purple-500 to-indigo-500'
+       
       },
       {
         id: 'score',
@@ -267,7 +295,7 @@ export default function WriterDashboard() {
         change: `${averageScore > 0 ? '+' + averageScore : '0'} points`,
         trend: averageScore > 50 ? 'up' : (averageScore > 0 ? 'neutral' : 'down'),
         iconType: 'chart',
-        color: 'from-emerald-500 to-teal-500'
+        
       },
       {
         id: 'completed',
@@ -276,7 +304,7 @@ export default function WriterDashboard() {
         change: `${completedCount > 0 ? '+' + completedCount : '0'} this month`,
         trend: completedCount > 0 ? 'up' : 'neutral',
         iconType: 'currency',
-        color: 'from-amber-500 to-orange-500'
+        
       },
       {
         id: 'success',
@@ -285,7 +313,7 @@ export default function WriterDashboard() {
         change: `${successRate > 0 ? '+' + successRate : '0'}% change`,
         trend: successRate > 50 ? 'up' : (successRate > 0 ? 'neutral' : 'down'),
         iconType: 'star',
-        color: 'from-pink-500 to-rose-500'
+       
       }
     ];
     
@@ -648,37 +676,38 @@ export default function WriterDashboard() {
     );
   }
 
+  // Helper to build marketplace- and userrole-aware URLs
+  const getMarketplaceUrl = (path: string) => {
+    const role = user?.role || localStorage.getItem('userRole') || 'writer';
+    let base = '';
+    if (marketplace === 'audio') {
+      base = `/audiomarket/${role}`;
+    } else if (marketplace === 'script') {
+      base = `/scriptmarket/${role}`;
+    } else {
+      base = `/${role}`;
+    }
+    return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
   return (
     <DashboardLayout userType="writer">
-      <div className="space-y-8">
-        {/* Welcome Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-8 py-8">
+        {/* Header Row */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
-            <motion.h1 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-2xl sm:text-3xl font-bold text-white mb-2"
-            >
-              Welcome back, <span className="gradient-text">{userName}</span> 👋
-            </motion.h1>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-sm sm:text-base text-gray-400"
-            >
-              Your creative journey continues. Let's make something amazing today.
-            </motion.p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Writer Dashboard</h1>
+            <p className="text-gray-400 text-sm md:text-base">Welcome, {userName || 'Writer'}! Here's your audio market dashboard.</p>
           </div>
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="w-full sm:w-auto flex items-center gap-4"
+            className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4"
           >
             <button 
               onClick={handleRefresh}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors w-full sm:w-auto"
               title="Refresh dashboard data"
               disabled={isLoading}
             >
@@ -686,8 +715,8 @@ export default function WriterDashboard() {
               <span className="sr-only md:not-sr-only">Refresh</span>
             </button>
             <Link
-              href="/writer/submit"
-              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all shadow-lg"
+              href={getMarketplaceUrl('/submit')}
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all shadow-lg w-full sm:w-auto"
             >
               <PlusIcon className="w-5 h-5" />
               <span>Submit Script</span>
@@ -696,7 +725,7 @@ export default function WriterDashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
           {stats.map((stat, index) => (
             <motion.div
               key={stat.id}
@@ -705,17 +734,17 @@ export default function WriterDashboard() {
               transition={{ delay: index * 0.1 }}
               className="card group hover:scale-105 transition-all duration-300"
             >
-              <div className="p-6">
+              <div className="p-4 md:p-6">
                 <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-lg bg-gradient-to-br ${stat.color} bg-opacity-10`}>
+                  <div className={`p-2 md:p-3 rounded-lg bg-gradient-to-br bg-opacity-10`}>
                     {renderIcon(stat.iconType)}
                   </div>
                   <div>
-                    <p className="text-sm text-gray-400">{stat.name}</p>
-                    <h3 className="text-2xl font-bold text-white">{stat.value}</h3>
+                    <p className="text-xs md:text-sm text-gray-400">{stat.name}</p>
+                    <h3 className="text-xl md:text-2xl font-bold text-white">{stat.value}</h3>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center text-sm">
+                <div className="mt-4 flex items-center text-xs md:text-sm">
                   <ArrowTrendingUpIcon className={`w-4 h-4 ${
                     stat.trend === 'up' ? 'text-emerald-500' : 
                     stat.trend === 'down' ? 'text-red-500' : 'text-gray-400'
@@ -726,37 +755,99 @@ export default function WriterDashboard() {
                   }>{stat.change}</span>
                 </div>
               </div>
-              <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-xl`} />
             </motion.div>
           ))}
         </div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Active Submissions */}
+          {/* Center Column: Audio Items List (NEW) */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="card lg:col-span-2"
+            className="lg:col-span-2"
           >
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-white mb-6">Your Submissions</h2>
-              
+            <h2 className="text-lg md:text-xl font-bold text-white mb-4 md:mb-6">Latest Audio Market Releases</h2>
+            <div className="space-y-4 md:space-y-6">
+              {mockAudioItems.map((audio) => (
+                <div
+                  key={audio.id}
+                  className="flex flex-col sm:flex-row bg-gray-900/80 border border-white/10 rounded-xl overflow-hidden shadow-lg hover:shadow-[rgb(var(--accent-primary))]/10 transition-all"
+                >
+                  {/* Cover Image */}
+                  <div className="w-full h-48 sm:w-40 sm:h-40 relative flex-shrink-0">
+                    <Image
+                      src={audio.cover}
+                      alt={audio.title}
+                      fill
+                      className="object-cover rounded-t-xl sm:rounded-l-xl sm:rounded-tr-none"
+                    />
+                  </div>
+                  {/* Content */}
+                  <div className="flex-1 p-4 md:p-6 flex flex-col justify-between">
+                    <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
+                        <span className="font-semibold text-white text-base md:text-lg line-clamp-1">{audio.title}</span>
+                        <span className="sm:ml-auto text-xs text-gray-400">{audio.createdAt}</span>
+                      </div>
+                      <div className="text-xs md:text-sm text-gray-400 mb-1">{audio.description}</div>
+                      <div className="text-xs text-gray-500 mb-2">by {audio.creator}</div>
+                      <div className="text-gray-300 text-xs md:text-sm line-clamp-2 mb-4">{audio.summary}</div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 mt-2">
+                      <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors w-full sm:w-auto justify-center">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-6.518-3.89A1 1 0 007 8.618v6.764a1 1 0 001.234.97l6.518-1.872A1 1 0 0016 13.382V10.618a1 1 0 00-1.248-.95z" /></svg>
+                        <span>{audio.duration}</span>
+                      </button>
+                      <a
+                        href={audio.downloadUrl}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all w-full sm:w-auto justify-center"
+                        download
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
+                        Download
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* More Button for Explore */}
+            <div className="flex justify-center mt-4 md:mt-6">
+              <Link
+                href={getMarketplaceUrl('/explore')}
+                className="inline-flex items-center gap-2 px-6 md:px-8 py-2 md:py-3 rounded-xl bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all shadow-lg hover:shadow-[rgb(var(--accent-primary))]/20 hover:scale-105 duration-300 text-sm md:text-base"
+              >
+                More
+                <ArrowRightIcon className="w-5 h-5" />
+              </Link>
+            </div>
+          </motion.div>
+
+          {/* Active Submissions */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="card"
+          >
+            <div className="p-4 md:p-6">
+              <h2 className="text-lg md:text-xl font-bold text-white mb-4 md:mb-6">Your Submissions</h2>
               {activeSubmissions.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3 md:space-y-4">
                   {activeSubmissions.slice(0, 3).map((submission) => (
                     <div
                       key={submission.id}
                       onClick={() => setSelectedSubmission(submission)}
-                      className={`p-4 border ${
+                      className={`p-3 md:p-4 border ${
                         selectedSubmission?.id === submission.id
                           ? 'border-[rgb(var(--accent-primary))] bg-[rgb(var(--accent-primary))]/5'
                           : 'border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10'
                       } rounded-lg cursor-pointer transition-all hover:scale-[1.02]`}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-white">{submission.title}</h3>
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-2">
+                        <h3 className="font-semibold text-white text-base md:text-lg">{submission.title}</h3>
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-1 rounded-full text-xs ${
                             submission.rank && submission.rank <= 3 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'
@@ -768,10 +859,10 @@ export default function WriterDashboard() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-gray-400">
-                        <div className="flex items-center gap-3">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-gray-400 gap-1 sm:gap-0">
+                        <div className="flex items-center gap-2 md:gap-3">
                           <span>{submission.studioName}</span>
-                          <span>•</span>
+                          <span className="hidden sm:inline">•</span>
                           <span>Submitted {submission.submitted}</span>
                         </div>
                         <span className={`mt-2 sm:mt-0 px-2 py-1 rounded-full ${
@@ -785,71 +876,29 @@ export default function WriterDashboard() {
                       </div>
                     </div>
                   ))}
-                  
                   <Link
-                    href="/writer/submissions"
-                    className="flex items-center justify-center p-4 border border-dashed border-white/10 rounded-lg hover:border-white/20 transition-colors text-sm text-gray-400 hover:text-white"
+                    href={getMarketplaceUrl('/submissions')}
+                    className="flex items-center justify-center p-3 md:p-4 border border-dashed border-white/10 rounded-lg hover:border-white/20 transition-colors text-xs md:text-sm text-gray-400 hover:text-white"
                   >
                     {activeSubmissions.length > 3 ? `View all ${activeSubmissions.length} submissions` : 'View all submissions'}
                     <ArrowRightIcon className="w-4 h-4 ml-2" />
                   </Link>
                 </div>
               ) : (
-                <div className="text-center py-10 border border-dashed border-white/10 rounded-xl bg-black/20">
-                  <DocumentTextIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-white mb-2">No Submissions Yet</h3>
-                  <p className="text-gray-400 mb-8 max-w-md mx-auto">
+                <div className="text-center py-8 md:py-10 border border-dashed border-white/10 rounded-xl bg-black/20">
+                  <DocumentTextIcon className="w-12 md:w-16 h-12 md:h-16 text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-lg md:text-xl font-semibold text-white mb-2">No Submissions Yet</h3>
+                  <p className="text-gray-400 mb-6 md:mb-8 max-w-md mx-auto text-xs md:text-base">
                     You haven't submitted any scripts yet. Browse available projects and submit your
                     creative work to start your journey.
                   </p>
-                  
-                      <Link
-                    href="/writer/projects"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-opacity shadow-lg"
-                      >
+                  <Link
+                    href={getMarketplaceUrl('/projects')}
+                    className="inline-flex items-center gap-2 px-4 md:px-4 py-2 md:py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-opacity shadow-lg text-xs md:text-base"
+                  >
                     <SparklesIcon className="w-5 h-5" />
                     Explore Projects
-                      </Link>
-                </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* AI Analysis Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="card"
-          >
-            <div className="p-6">
-              <h2 className="text-xl font-bold text-white mb-6">Script Analysis</h2>
-              
-              {selectedSubmission ? (
-                <div>
-                  <div className="mb-6">
-                    <h3 className="font-semibold text-white mb-1">{selectedSubmission.title}</h3>
-                    <p className="text-sm text-gray-400">AI Evaluation Score: {selectedSubmission.score}%</p>
-                  </div>
-                  
-                  <div className="bg-gray-900 p-4 rounded-lg border border-gray-800 mb-6">
-                    <h3 className="text-lg font-medium text-gray-200 mb-2">Script Analysis</h3>
-                    <p className="text-gray-400">AI-powered script analysis is currently unavailable.</p>
-                  </div>
-                  
-                  <div className="mt-6">
-                    <Link
-                      href={`/writer/submissions/${selectedSubmission.id}`}
-                      className="w-full py-2 flex items-center justify-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors"
-                    >
-                      View detailed analysis
-                      <ArrowRightIcon className="w-4 h-4" />
-                    </Link>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center p-6 border border-dashed border-white/10 rounded-lg">
-                  <p className="text-gray-400">Select a submission to view its analysis</p>
+                  </Link>
                 </div>
               )}
             </div>
@@ -857,133 +906,22 @@ export default function WriterDashboard() {
         </div>
 
         {/* Available Projects */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <h2 className="text-2xl font-bold text-white flex items-center">
-            <DocumentTextIcon className="w-6 h-6 text-[rgb(var(--accent-primary))] mr-2" />
-            Featured Projects
+        <div className="my-6 md:my-8">
+          <h2 className="text-xl md:text-2xl font-bold text-white mb-2 md:mb-4 flex items-center">
+            <DocumentTextIcon className="w-5 h-5 md:w-6 md:h-6 text-[rgb(var(--accent-primary))] mr-2" />
+            Genres
           </h2>
-          <Link 
-            href="/writer/projects" 
-            className="text-[rgb(var(--accent-primary))] hover:text-[rgb(var(--accent-primary))]/80 transition-colors text-sm flex items-center gap-1"
-          >
-            View all projects
-            <ArrowRightIcon className="w-4 h-4" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {availableProjects.slice(0, 3).map((project, index) => (
-            <motion.div
-              key={project.id || project._id || index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                delay: 0.1 + index * 0.05,
-                duration: 0.3
-              }}
-              className="bg-gray-900/70 backdrop-blur-sm border border-white/5 rounded-xl overflow-hidden hover:border-[rgb(var(--accent-primary))]/30 hover:shadow-lg hover:shadow-[rgb(var(--accent-primary))]/10 transition-all duration-300"
-            >
-              {/* Project Header */}
-              <div className="p-4 border-b border-white/10">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-lg font-semibold text-white truncate">{project.title}</h3>
-                  <span className={`px-2 py-1 text-xs rounded-full ${project.statusColor}`}>
-                    {project.statusText}
-                  </span>
-                  </div>
-                <p className="text-gray-400 text-sm line-clamp-2">{project.description}</p>
-                  </div>
-              
-              {/* Producer/Company name */}
-              <div className="px-4 py-2 border-b border-white/10">
-                <p className="text-xs text-gray-400">From Studio:</p>
-                <p className="text-sm font-medium text-white">
-                  {project.studioName}
-                </p>
-                </div>
-                
-              {/* Project Details */}
-              <div className="p-4">
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="px-3 py-2 bg-black/20 rounded-lg border border-white/5">
-                    <p className="text-xs text-gray-400 mb-1">Budget</p>
-                    <p className="text-sm font-semibold text-white flex items-center">
-                      <CurrencyDollarIcon className="w-4 h-4 mr-1 text-green-400" />
-                      {project.budgetFormatted}
-                    </p>
-                  </div>
-                  
-                  <div className="px-3 py-2 bg-black/20 rounded-lg border border-white/5">
-                    <p className="text-xs text-gray-400 mb-1">Deadline</p>
-                    <p className="text-sm font-semibold text-white flex items-center">
-                      <ClockIcon className="w-4 h-4 mr-1 text-cyan-400" />
-                      {typeof project.deadlineFormatted === 'string' ? project.deadlineFormatted : 'No deadline'}
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Requirements preview */}
-                {project.requirements && (
-                  <div className="mb-4">
-                    <div className="mb-2 text-xs text-gray-500 uppercase">Requirements:</div>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.isArray(project.requirements) ? 
-                        project.requirements.slice(0, 3).map((req: any, index: number) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-white/5 rounded-full text-xs text-gray-300"
-                          >
-                            {typeof req === 'string' ? req : 'Requirement'}
-                          </span>
-                        )) : (
-                        <span className="px-2 py-1 bg-white/5 rounded-full text-xs text-gray-300">
-                            See details
-                        </span>
-                        )
-                      }
-                    </div>
-                  </div>
-                )}
-                
-                {/* Action Button */}
-                <button
-                  onClick={() => viewProjectDetails(project)}
-                  className="w-full py-2 px-3 bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center justify-center"
-                >
-                  View Project
-                </button>
-              </div>
-            </motion.div>
-          ))}
-          
-          {availableProjects.length === 0 && (
-            <div className="col-span-3 text-center p-8 bg-black/30 backdrop-blur-sm rounded-xl border border-white/10">
-              <DocumentTextIcon className="w-12 h-12 mx-auto text-gray-500 mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No Available Projects</h3>
-              <p className="text-gray-400 mb-4">
-                There are currently no open projects. Check back later for opportunities.
-              </p>
-            </div>
-          )}
-        </div>
-        
-        {/* Add prominent Browse All Projects button */}
-        {availableProjects.length > 0 && (
-          <div className="flex justify-center mt-10">
-              <Link 
-                href="/writer/projects" 
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all shadow-lg hover:shadow-[rgb(var(--accent-primary))]/20 hover:scale-105 duration-300"
+          <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2">
+            {['Solo Verses', 'Duets', 'Choral', 'Instrumental', 'Spoken Word', 'Podcast', 'Narrative', 'Experimental', 'Comedy', 'Drama'].map((genre) => (
+              <span
+                key={genre}
+                className="px-3 md:px-5 py-1 md:py-2 border-white rounded-lg text-white font-semibold whitespace-nowrap shadow hover:scale-105 transition-transform cursor-pointer text-xs md:text-base"
               >
-              <SparklesIcon className="w-5 h-5" />
-                Browse All Projects
-              {availableProjects.length > 3 && (
-                <span className="ml-2 px-2 py-1 bg-white/20 rounded-full text-xs">
-                  {availableProjects.length - 3}+ more
-                </span>
-              )}
-              </Link>
-            </div>
-          )}
+                {genre}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );
