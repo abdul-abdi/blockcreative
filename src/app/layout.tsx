@@ -36,6 +36,7 @@ export default async function RootLayout({
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
+        <link rel="preload" href="/globals.css" as="style" />
       </head>
       <body className={`${inter.className} min-h-screen bg-black antialiased`}>
         <ContextProvider cookies="" dbConnected={dbConnected}>

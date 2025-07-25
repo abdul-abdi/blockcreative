@@ -26,7 +26,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    optimizeCss: false,
+    optimizeCss: true,
     scrollRestoration: true,
     optimizePackageImports: ['@heroicons/react', 'framer-motion'],
   },
