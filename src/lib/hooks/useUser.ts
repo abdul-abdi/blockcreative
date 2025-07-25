@@ -47,6 +47,13 @@ const fetcher = async (url: string) => {
       return { user: null, authenticated: false };
     }
     
+    // Handle 401 Unauthorized (after sign-out)
+    if (res.status === 401 && url.includes('/api/users/me')) {
+      console.log('User not authenticated (401), clearing localStorage and returning empty user state');
+      clearAuthData();
+      return { user: null, authenticated: false };
+    }
+    
     if (!res.ok) {
       const errorText = await res.text();
       console.error(`Fetch error for ${url}:`, {

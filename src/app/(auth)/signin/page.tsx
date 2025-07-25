@@ -8,6 +8,8 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/sections/Footer';
 import { appKitModal } from '@/context';
 import { useAccount } from 'wagmi';
+import MarketplaceChoiceModal from '@/components/MarketplaceChoiceModal';
+import { useMarketplace } from '@/context/audio';
 
 // Helper function to parse SIWE errors
 const parseSiweError = (error: any): string => {
@@ -54,6 +56,10 @@ export default function SignIn() {
   const { address, isConnected } = useAccount();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showMarketplaceModal,setShowMarketplaceModal] = useState(false);
+  const [userRole,setUserRole] = useState<string | null> (null);
+  const { setMarketplace } = useMarketplace();
+
   
   // Simple function to determine a mock user role based on address
   const determineUserRole = (address: string) => {
@@ -187,10 +193,11 @@ export default function SignIn() {
           if (!userData.user.onboarding_completed) {
             console.log('Onboarding not completed, redirecting to onboarding');
             router.push(`/${userData.user.role}/onboarding`);
+            setIsLoading(false);
           } else {
-            // Redirect to the correct dashboard based on role
-            console.log(`Redirecting to ${userData.user.role} dashboard`);
-            router.push(`/${userData.user.role}/dashboard`);
+            setUserRole(userData.user.role);
+            setShowMarketplaceModal(true);
+            setIsLoading(false);
           }
         } else {
           setError('Invalid user data returned from server');
@@ -208,6 +215,16 @@ export default function SignIn() {
       setIsLoading(false);
     }
   };
+
+  const handleMarketPlaceChoice = (choice : "audio" | "script") =>{
+    setShowMarketplaceModal(false);
+    setMarketplace(choice);
+    if (choice==="script" && userRole){
+      router.push(`/${userRole}/dashboard`);
+    }else{
+      router.push(`/audiomarket/${userRole}/dashboard`);
+    }
+  }
 
   // Handle email/social connect button click
   const handleEmailSocialConnect = async () => {
@@ -331,6 +348,11 @@ export default function SignIn() {
       </main>
       
       <Footer />
+      <MarketplaceChoiceModal 
+        open ={showMarketplaceModal}
+        onClose={() => setShowMarketplaceModal(false)}
+        onSelect={handleMarketPlaceChoice}  
+      />
     </div>
   );
 } 

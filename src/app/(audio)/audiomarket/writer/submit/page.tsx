@@ -29,7 +29,7 @@ import {
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
-import { useMarketplace } from '@/context/audio';
+import { useUser } from '@/lib/hooks/useUser';
 
 
 interface Project {
@@ -131,7 +131,14 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
   const [nftStatus, setNftStatus] = useState<string>("pending");
   const [tokenId, setTokenId] = useState<string | null>(null);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
-  
+  const {user,isLoading}  = useUser();
+  const [kycStatus, setKycStatus] = useState<'not_submitted' | 'pending' | 'verified' | 'rejected'>('not_submitted');
+  useEffect(() => {
+    if(user && user.kycStatus){
+      setKycStatus(user.kycStatus)
+    }
+  },[user]);
+
   useEffect(() => {
     // Poll for NFT status if submission ID is available
     let intervalId: NodeJS.Timeout;
@@ -164,6 +171,20 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
       if (intervalId) clearInterval(intervalId);
     };
   }, [submissionId]);
+
+  if(isLoading) {
+    return <div>Loading ...</div>
+  }
+  
+  if (kycStatus !== 'verified'){
+    return(
+      <div >
+        <h2>KYC Verification</h2>
+        <p>You must complete KYC Verification before uploading songs <br/> Visit here to complete verification <a href="/(audio)/audiomarket/writer/settings" className='underline text-yellow-300'>Settings</a>
+        </p>
+      </div>
+    )
+  }
   
   return (
     <motion.div 
@@ -642,13 +663,10 @@ const SubmitScript = () => {
     setError("");
   };
   
-  const {marketplace} = useMarketplace();
   // Similarly update the handleSubmitScript function for consistent auth pattern
   const handleSubmitScript = async () => {
     setIsSubmitting(true);
     setError("");
-
-    const endpoint = marketplace === 'audio' ? '/api/audio/submissions' : '/api/submission'
 
     // Validate required fields
     if (!scriptData.title || !scriptData.genre || !scriptData.content || !scriptData.logline 
@@ -721,7 +739,7 @@ const SubmitScript = () => {
       };
       
       // Use the correct API endpoint from the documentation
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/submissions", {
         method: "POST",
         headers,
         body: JSON.stringify(submissionData),

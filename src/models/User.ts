@@ -73,10 +73,8 @@ const UserSchema: Schema = new Schema({
 });
 
 // Add indexes for faster queries
-UserSchema.index({ address: 1 });
 UserSchema.index({ role: 1 });
 UserSchema.index({ auth_method: 1 });
-UserSchema.index({ app_kit_user_id: 1 });
 
 // Pre-save hook to ensure lowercase addresses
 UserSchema.pre('save', function(this: IUser, next) {

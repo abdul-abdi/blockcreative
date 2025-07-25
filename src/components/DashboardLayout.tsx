@@ -24,6 +24,8 @@ import Image from 'next/image';
 import AuthWrapper from '@/components/AuthWrapper';
 import { appKitModal } from '@/context';
 import { useAccount, useDisconnect } from 'wagmi';
+import {StarIcon, ArrowUpTrayIcon} from '@heroicons/react/24/outline';
+import { useMarketplace } from '@/context/audio';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -44,6 +46,20 @@ const writerNavItems = [
   { name: 'Settings', href: '/writer/settings', icon: Cog6ToothIcon },
 ];
 
+const audioProducerNavItems = [
+  { name: 'Dashboard', href: '/audiomarket/producer/dashboard', icon: HomeIcon },
+  { name: 'Premium', href: '/audiomarket/producer/premium', icon: StarIcon },
+  { name: 'Uploads', href: '/audiomarket/producer/uploads', icon: ArrowUpTrayIcon },
+  { name: 'Settings', href: '/audiomarket/producer/settings', icon: Cog6ToothIcon },
+];
+
+const audioWriterNavItems = [
+  { name: 'Dashboard', href: '/audiomarket/writer/dashboard', icon: HomeIcon },
+  { name: 'Premium', href: '/audiomarket/writer/premium', icon: StarIcon },
+  { name: 'Uploads', href: '/audiomarket/writer/uploads', icon: ArrowUpTrayIcon },
+  { name: 'Settings', href: '/audiomarket/writer/settings', icon: Cog6ToothIcon },
+];
+
 export default function DashboardLayout({ children, userType }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -52,7 +68,17 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
   const { disconnect } = useDisconnect();
   const router = useRouter();
   const pathname = usePathname();
-  const navItems = userType === 'producer' ? producerNavItems : writerNavItems;
+ 
+  const {marketplace, setMarketplace} = useMarketplace();
+
+  let navItems;
+  if(marketplace === 'audio'){
+    navItems = userType === 'producer' ? audioProducerNavItems : audioWriterNavItems
+  }else{
+    navItems = userType === 'producer' ? producerNavItems: writerNavItems;
+  }
+
+  const settingsLink = marketplace === 'audio' ? `/audiomarket/${userType}/settings`: `/${userType}/settings`;
   
   // User data from localStorage
   const [userName, setUserName] = useState('');
@@ -501,7 +527,7 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
                       </div>
                       <div className="p-2 space-y-1">
                         <Link
-                          href={`/${userType}/settings`}
+                          href={settingsLink}
                           className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 text-gray-300 hover:text-white transition-colors"
                           onClick={() => setIsProfileDropdownOpen(false)}
                         >
@@ -622,7 +648,7 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
                       </Link>
                     ) : (
                       <Link
-                        href="/writer/submit"
+                        href={marketplace === 'audio'? '/audiomarket/writer/submit':'/writer/submit'}                        
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white hover:opacity-90 flex items-center justify-center gap-2 transition-opacity font-medium"
                       >
