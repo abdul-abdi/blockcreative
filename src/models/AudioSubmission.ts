@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const AudioSubmissionSchema = new mongoose.Schema({
     title:String,
     content:String,
-    createdAt: {type: DataTransfer, default: Date.now}
+    createdAt: {type: Date, default: Date.now}
 })
 
 export default mongoose.models.AudioSubmission || 
