@@ -50,6 +50,7 @@ const audioProducerNavItems = [
   { name: 'Dashboard', href: '/audiomarket/producer/dashboard', icon: HomeIcon },
   { name: 'Premium', href: '/audiomarket/producer/premium', icon: StarIcon },
   { name: 'Uploads', href: '/audiomarket/producer/uploads', icon: ArrowUpTrayIcon },
+  { name: 'Explore', href: '/audiomarket/producer/explore', icon: ArrowUpTrayIcon },
   { name: 'Settings', href: '/audiomarket/producer/settings', icon: Cog6ToothIcon },
 ];
 
@@ -57,6 +58,7 @@ const audioWriterNavItems = [
   { name: 'Dashboard', href: '/audiomarket/writer/dashboard', icon: HomeIcon },
   { name: 'Premium', href: '/audiomarket/writer/premium', icon: StarIcon },
   { name: 'Uploads', href: '/audiomarket/writer/uploads', icon: ArrowUpTrayIcon },
+  { name: 'Explore', href: '/audiomarket/writer/explore', icon: ArrowUpTrayIcon },
   { name: 'Settings', href: '/audiomarket/writer/settings', icon: Cog6ToothIcon },
 ];
 
