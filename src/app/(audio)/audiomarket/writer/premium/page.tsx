@@ -1,5 +1,6 @@
 import React from 'react'
 import TiltedCard from '@/components/TiltedCard';
+import Link from 'next/link';
 
 const plans = [
   {
@@ -39,6 +40,13 @@ const plans = [
 const page = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 py-6 sm:py-8 md:py-10 px-3 sm:px-4 md:px-6 flex flex-col items-center">
+      {/* Back Button */}
+      <div className="w-full max-w-4xl mb-4 flex justify-start">
+        <Link href="/audiomarket/writer/dashboard" className="inline-flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-semibold shadow transition-all duration-200">
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+          Back to Dashboard
+        </Link>
+      </div>
       {/* Header Section */}
       <div className="w-full max-w-4xl text-center mb-6 sm:mb-8 md:mb-10">
         <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 sm:mb-4">

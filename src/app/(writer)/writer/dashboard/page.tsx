@@ -21,7 +21,13 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { useUser } from '@/lib/hooks/useUser';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import ScrollVelocity from '@/components/ScrollVelocity';
 
+// Add genreOptions array for the genre scroller
+const genreOptions = [
+  'Drama', 'Comedy', 'Thriller', 'Horror', 'Sci-Fi', 
+  'Fantasy', 'Animation', 'Documentary', 'Action', 'Romance'
+];
 // Define types for our data
 interface Submission {
   id: string | number;
@@ -668,17 +674,16 @@ export default function WriterDashboard() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="w-full sm:w-auto flex items-center gap-4"
+            className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4"
           >
-            <button 
-              onClick={handleRefresh}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
-              title="Refresh dashboard data"
-              disabled={isLoading}
+            <Link
+              href="/audiomarket/writer/dashboard"
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-800 text-white font-semibold hover:opacity-90 transition-all w-full sm:w-auto"
+              title="Switch to Audio Marketplace"
             >
-              <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="sr-only md:not-sr-only">Refresh</span>
-            </button>
+              <SparklesIcon className="w-5 h-5" />
+              <span>Switch to Audio Marketplace</span>
+            </Link>
             <Link
               href="/writer/submit"
               className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all shadow-lg"
@@ -979,6 +984,19 @@ export default function WriterDashboard() {
             </div>
           )}
       </div>
+      <div className="fixed bottom-0 left-0 w-full z-50 bg-gradient-to-r from-gray-900/90 to-gray-800/90 py-2 border-t border-gray-700">
+      <div className="max-w-7xl mx-auto px-4">
+        <ScrollVelocity
+          texts={genreOptions}
+          velocity={80}
+          className="text-lg md:text-2xl font-semibold text-blue-300 tracking-wide"
+          numCopies={4}
+          parallaxClassName="overflow-hidden"
+          scrollerClassName="flex items-center"
+          parallaxStyle={{height: '2.5rem'}}
+        />
+      </div>
+    </div>
     </DashboardLayout>
   );
 }

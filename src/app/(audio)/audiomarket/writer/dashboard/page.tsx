@@ -22,6 +22,7 @@ import { useUser } from '@/lib/hooks/useUser';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useMarketplace } from '@/context/audio';
+import ScrollVelocity from '@/components/ScrollVelocity';
 
 // Define types for our data
 interface Submission {
@@ -218,6 +219,12 @@ const mockAudioItems = [
   // Add more mock items as needed
 ];
 // --- END MOCK AUDIO DATA ---
+
+// Add genreOptions array for the genre scroller
+const genreOptions = [
+  'Drama', 'Comedy', 'Thriller', 'Horror', 'Sci-Fi', 
+  'Fantasy', 'Animation', 'Documentary', 'Action', 'Romance'
+];
 
 export default function WriterDashboard() {
   const [userData, setUserData] = useState<any>(null);
@@ -705,15 +712,14 @@ export default function WriterDashboard() {
             transition={{ delay: 0.2 }}
             className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4"
           >
-            <button 
-              onClick={handleRefresh}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors w-full sm:w-auto"
-              title="Refresh dashboard data"
-              disabled={isLoading}
+            <Link
+              href="/writer/dashboard"
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold hover:opacity-90 transition-all w-full sm:w-auto"
+              title="Switch to Script Marketplace"
             >
-              <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="sr-only md:not-sr-only">Refresh</span>
-            </button>
+              <SparklesIcon className="w-5 h-5" />
+              <span>Switch to Script Marketplace</span>
+            </Link>
             <Link
               href={getMarketplaceUrl('/submit')}
               className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all shadow-lg w-full sm:w-auto"
@@ -911,16 +917,7 @@ export default function WriterDashboard() {
             <DocumentTextIcon className="w-5 h-5 md:w-6 md:h-6 text-[rgb(var(--accent-primary))] mr-2" />
             Genres
           </h2>
-          <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2">
-            {['Solo Verses', 'Duets', 'Choral', 'Instrumental', 'Spoken Word', 'Podcast', 'Narrative', 'Experimental', 'Comedy', 'Drama'].map((genre) => (
-              <span
-                key={genre}
-                className="px-3 md:px-5 py-1 md:py-2 border-white rounded-lg text-white font-semibold whitespace-nowrap shadow hover:scale-105 transition-transform cursor-pointer text-xs md:text-base"
-              >
-                {genre}
-              </span>
-            ))}
-          </div>
+
         </div>
       </div>
     </DashboardLayout>

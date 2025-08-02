@@ -47,11 +47,10 @@ const writerNavItems = [
 ];
 
 const audioProducerNavItems = [
-  { name: 'Dashboard', href: '/audiomarket/producer/dashboard', icon: HomeIcon },
-  { name: 'Premium', href: '/audiomarket/producer/premium', icon: StarIcon },
-  { name: 'Uploads', href: '/audiomarket/producer/uploads', icon: ArrowUpTrayIcon },
-  { name: 'Explore', href: '/audiomarket/producer/explore', icon: ArrowUpTrayIcon },
-  { name: 'Settings', href: '/audiomarket/producer/settings', icon: Cog6ToothIcon },
+  { name: 'Dashboard', href: '/producer/dashboard', icon: HomeIcon },
+  { name: 'Active Projects', href: '/producer/projects', icon: FolderIcon },
+  { name: 'Find Writers', href: '/producer/writers', icon: UserGroupIcon },
+  { name: 'Settings', href: '/producer/settings', icon: Cog6ToothIcon },
 ];
 
 const audioWriterNavItems = [
