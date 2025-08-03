@@ -339,7 +339,7 @@ export default function ProjectDetails() {
             <p className="text-red-300">{error}</p>
           </div>
           <Link 
-            href="/producer/projects"
+            href="/audiomarket/producer/projects"
             className="px-4 py-2 rounded-lg text-white bg-gray-700 hover:bg-gray-600 transition-colors mt-4 inline-flex items-center"
           >
             <ArrowLongLeftIcon className="w-5 h-5 mr-2" />
@@ -356,7 +356,7 @@ export default function ProjectDetails() {
         <div className="p-6 text-center">
           <p className="text-gray-400 mb-4">Project not found</p>
           <Link 
-            href="/producer/projects"
+            href="/audiomarket/producer/projects"
             className="px-4 py-2 rounded-lg text-white bg-gray-700 hover:bg-gray-600 transition-colors mt-4 inline-flex items-center"
           >
             <ArrowLongLeftIcon className="w-5 h-5 mr-2" />
@@ -373,7 +373,7 @@ export default function ProjectDetails() {
         {/* Back button and action buttons */}
         <div className="flex justify-between items-center mb-6">
           <Link 
-            href="/producer/projects"
+            href="/audiomarket/producer/projects"
             className="flex items-center text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLongLeftIcon className="w-5 h-5 mr-2" />

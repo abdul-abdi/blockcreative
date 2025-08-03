@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
@@ -19,8 +19,10 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  ChevronUpDownIcon
 } from '@heroicons/react/24/outline';
+import { Listbox, Transition } from '@headlessui/react';
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
 import { createAuthenticatedHeaders } from '@/lib/utils';
@@ -958,55 +960,136 @@ export default function CreateProject() {
                 <label htmlFor="genre" className="block text-white font-medium mb-2">
                   Genre <span className="text-red-500">*</span>
                 </label>
-                <select
-                  id="genre"
-                  name="genre"
-                  value={formData.genre}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white"
-                  required
-                >
-                  <option value="">Select a genre</option>
-                  <option value="action">Action</option>
-                  <option value="comedy">Comedy</option>
-                  <option value="drama">Drama</option>
-                  <option value="sci-fi">Science Fiction</option>
-                  <option value="fantasy">Fantasy</option>
-                  <option value="horror">Horror</option>
-                  <option value="romance">Romance</option>
-                  <option value="thriller">Thriller</option>
-                  <option value="documentary">Documentary</option>
-                  <option value="animation">Animation</option>
-                  <option value="family">Family</option>
-                  <option value="musical">Musical</option>
-                  <option value="other">Other</option>
-                </select>
+                <Listbox value={formData.genre} onChange={(value) => setFormData(prev => ({...prev, genre: value}))}>
+                  <div className="relative">
+                    <Listbox.Button className="relative w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white text-left cursor-pointer">
+                      <span className="block truncate">
+                        {formData.genre ? 
+                          (['action', 'comedy', 'drama', 'sci-fi', 'fantasy', 'horror', 'romance', 'thriller', 'documentary', 'animation', 'family', 'musical', 'other'].find(g => g === formData.genre) === 'sci-fi' ? 'Science Fiction' : 
+                           formData.genre.charAt(0).toUpperCase() + formData.genre.slice(1)) : 
+                          'Select a genre'
+                        }
+                      </span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                        <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </span>
+                    </Listbox.Button>
+                    <Transition
+                      as={Fragment}
+                      leave="transition ease-in duration-100"
+                      leaveFrom="opacity-100"
+                      leaveTo="opacity-0"
+                    >
+                      <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-gray-900 border border-gray-700 shadow-lg focus:outline-none">
+                        {[
+                          { value: 'action', label: 'Action' },
+                          { value: 'comedy', label: 'Comedy' },
+                          { value: 'drama', label: 'Drama' },
+                          { value: 'sci-fi', label: 'Science Fiction' },
+                          { value: 'fantasy', label: 'Fantasy' },
+                          { value: 'horror', label: 'Horror' },
+                          { value: 'romance', label: 'Romance' },
+                          { value: 'thriller', label: 'Thriller' },
+                          { value: 'documentary', label: 'Documentary' },
+                          { value: 'animation', label: 'Animation' },
+                          { value: 'family', label: 'Family' },
+                          { value: 'musical', label: 'Musical' },
+                          { value: 'other', label: 'Other' }
+                        ].map((genre) => (
+                          <Listbox.Option
+                            key={genre.value}
+                            className={({ active }) =>
+                              `relative cursor-pointer select-none py-2 pl-3 pr-9 ${
+                                active ? 'bg-gray-800 text-white' : 'text-gray-300'
+                              }`
+                            }
+                            value={genre.value}
+                          >
+                            {({ selected }) => (
+                              <>
+                                <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                  {genre.label}
+                                </span>
+                                {selected ? (
+                                  <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-[rgb(var(--accent-primary))]">
+                                    <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                  </span>
+                                ) : null}
+                              </>
+                            )}
+                          </Listbox.Option>
+                        ))}
+                      </Listbox.Options>
+                    </Transition>
+                  </div>
+                </Listbox>
               </div>
               
               <div>
                 <label htmlFor="type" className="block text-white font-medium mb-2">
                   Project Type <span className="text-red-500">*</span>
                 </label>
-                <select
-                  id="type"
-                  name="type"
-                  value={formData.type}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white"
-                  required
-                >
-                  <option value="">Select a type</option>
-                  <option value="feature-film">Feature Film</option>
-                  <option value="short-film">Short Film</option>
-                  <option value="tv-series">TV Series</option>
-                  <option value="tv-episode">TV Episode</option>
-                  <option value="documentary">Documentary</option>
-                  <option value="music-video">Music Video</option>
-                  <option value="web-series">Web Series</option>
-                  <option value="commercial">Commercial</option>
-                  <option value="online-content">Online Content</option>
-                  <option value="other">Other</option>
-                </select>
+
+                <Listbox value={formData.type} onChange={(value) => setFormData(prev => ({...prev, type: value}))}>
+                  <div className="relative">
+                    <Listbox.Button className="relative w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white text-left cursor-pointer">
+                      <span className="block truncate">
+                        {formData.type ? 
+                          (['feature-film', 'short-film', 'tv-series', 'tv-episode', 'documentary', 'music-video', 'web-series', 'commercial', 'online-content', 'other'].find(g => g === formData.type) === 'sci-fi' ? 'Science Fiction' : 
+                           formData.type.charAt(0).toUpperCase() + formData.type.slice(1)) : 
+                          'Select a genre'
+                        }
+                      </span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                        <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </span>
+                    </Listbox.Button>
+                    <Transition
+                      as={Fragment}
+                      leave="transition ease-in duration-100"
+                      leaveFrom="opacity-100"
+                      leaveTo="opacity-0"
+                    >
+                      <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-gray-900 border border-gray-700 shadow-lg focus:outline-none">
+                        {[
+                          { value: 'feature-film', label: 'Feature Film' },
+                          { value: 'short-film', label: 'Short Film' },
+                          { value: 'tv-series', label: 'TV Series' },
+                          { value: 'tv-episode', label: 'TV Episode' },
+                          { value: 'documentary', label: 'Documentary' },
+                          { value: 'music-video', label: 'Music Video' },
+                          { value: 'web-series', label: 'Web Series' },
+                          { value: 'commercial', label: 'Commercial' },
+                          { value: 'online-content', label: 'Online Content' },
+                          { value: 'other', label: 'Other' }
+                        ].map((genre) => (
+                          <Listbox.Option
+                            key={genre.value}
+                            className={({ active }) =>
+                              `relative cursor-pointer select-none py-2 pl-3 pr-9 ${
+                                active ? 'bg-gray-800 text-white' : 'text-gray-300'
+                              }`
+                            }
+                            value={genre.value}
+                          >
+                            {({ selected }) => (
+                              <>
+                                <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                  {genre.label}
+                                </span>
+                                {selected ? (
+                                  <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-[rgb(var(--accent-primary))]">
+                                    <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                  </span>
+                                ) : null}
+                              </>
+                            )}
+                          </Listbox.Option>
+                        ))}
+                      </Listbox.Options>
+                    </Transition>
+                  </div>
+                </Listbox>       
               </div>
             </div>
             
@@ -1151,26 +1234,66 @@ export default function CreateProject() {
               <label htmlFor="content_rating" className="block text-white font-medium mb-2">
                 Content Rating
               </label>
-              <select
-                id="content_rating"
-                name="content_rating"
-                value={formData.content_rating}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white"
-              >
-                <option value="">Select desired rating</option>
-                <option value="G">G - General Audiences</option>
-                <option value="PG">PG - Parental Guidance Suggested</option>
-                <option value="PG-13">PG-13 - Parents Strongly Cautioned</option>
-                <option value="R">R - Restricted</option>
-                <option value="NC-17">NC-17 - Adults Only</option>
-                <option value="TV-Y">TV-Y - All Children</option>
-                <option value="TV-Y7">TV-Y7 - Older Children</option>
-                <option value="TV-G">TV-G - General Audience</option>
-                <option value="TV-PG">TV-PG - Parental Guidance Suggested</option>
-                <option value="TV-14">TV-14 - Parents Strongly Cautioned</option>
-                <option value="TV-MA">TV-MA - Mature Audiences Only</option>
-              </select>
+              <Listbox value={formData.content_rating} onChange={(value) => setFormData(prev => ({...prev, content_rating: value}))}>
+                  <div className="relative">
+                    <Listbox.Button className="relative w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white text-left cursor-pointer">
+                      <span className="block truncate">
+                        {formData.content_rating ? 
+                          formData.content_rating.charAt(0).toUpperCase() + formData.content_rating.slice(1) : 
+                          'Select a genre'
+                        }
+                      </span>
+                      <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                        <ChevronUpDownIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                      </span>
+                    </Listbox.Button>
+                    <Transition
+                      as={Fragment}
+                      leave="transition ease-in duration-100"
+                      leaveFrom="opacity-100"
+                      leaveTo="opacity-0"
+                    >
+                      <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-gray-900 border border-gray-700 shadow-lg focus:outline-none">
+                        {[
+                          { value: 'G', label: 'G - General Audiences' },
+                          { value: 'PG', label: 'PG - Parental Guidance Suggested' },
+                          { value: 'PG-13', label: 'PG-13 - Parents Strongly Cautioned' },
+                          { value: 'R', label: 'R - Restricted' },
+                          { value: 'NC-17', label: 'NC-17 - Adults Only' },
+                          { value: 'TV-Y', label: 'TV-Y - All Children' },
+                          { value: 'TV-Y7', label: 'TV-Y7 - Older Children' },
+                          { value: 'TV-G', label: 'TV-G - General Audience' },
+                          { value: 'TV-PG', label: 'TV-PG - Parental Guidance Suggested' },
+                          { value: 'TV-14', label: 'TV-14 - Parents Strongly Cautioned' },
+                          { value: 'TV-MA', label: 'TV-MA - Mature Audiences Only' },
+                        ].map((genre) => (
+                          <Listbox.Option
+                            key={genre.value}
+                            className={({ active }) =>
+                              `relative cursor-pointer select-none py-2 pl-3 pr-9 ${
+                                active ? 'bg-gray-800 text-white' : 'text-gray-300'
+                              }`
+                            }
+                            value={genre.value}
+                          >
+                            {({ selected }) => (
+                              <>
+                                <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                  {genre.label}
+                                </span>
+                                {selected ? (
+                                  <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-[rgb(var(--accent-primary))]">
+                                    <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                  </span>
+                                ) : null}
+                              </>
+                            )}
+                          </Listbox.Option>
+                        ))}
+                      </Listbox.Options>
+                    </Transition>
+                  </div>
+                </Listbox>
               <p className="mt-1 text-xs text-gray-400">
                 Specify the intended content rating for your project
               </p>
@@ -1538,7 +1661,7 @@ export default function CreateProject() {
       <div className="p-6 md:p-8 max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Link href="/producer/projects" className="text-gray-400 hover:text-white flex items-center gap-2 mb-4">
+          <Link href="/audiomarket/producer/projects" className="text-gray-400 hover:text-white flex items-center gap-2 mb-4">
             <ArrowLongLeftIcon className="w-5 h-5" />
             <span>Back to Projects</span>
           </Link>

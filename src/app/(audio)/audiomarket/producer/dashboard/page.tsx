@@ -1396,7 +1396,7 @@ export default function ProducerDashboard() {
                           <DocumentTextIcon className="w-3.5 h-3.5" />
                         </button>
                         <Link
-                          href={`/producer/projects/${project.id}`}
+                          href={`/audiomarket/producer/projects/${project.id}`}
                           className="inline-flex items-center gap-1 px-4 py-2 rounded-lg text-white bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] hover:opacity-90 transition-opacity text-sm font-medium"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -1411,7 +1411,7 @@ export default function ProducerDashboard() {
                     <DocumentTextIcon className="w-10 h-10 mx-auto text-gray-500 mb-3" />
                     <p className="text-gray-400 mb-4">No active projects found</p>
                     <Link
-                      href="/producer/projects/new"
+                      href="/audiomarket/producer/projects/new"
                       className="inline-flex items-center gap-1 px-6 py-2.5 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-medium hover:opacity-90 transition-opacity shadow-lg"
                     >
                       <PlusIcon className="w-5 h-5" />
@@ -1423,7 +1423,7 @@ export default function ProducerDashboard() {
                 {activeProjects.length > 3 && (
                   <div className="mt-4 text-center">
                     <Link
-                      href="/producer/projects"
+                      href="/audiomarket/producer/projects"
                       className="inline-flex items-center gap-1 px-6 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
                     >
                       View All {activeProjects.length} Projects
@@ -1446,7 +1446,7 @@ export default function ProducerDashboard() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">Top Writers</h2>
                 <Link
-                  href="/producer/writers"
+                  href="/audiomarket/producer/writers"
                   className="text-[rgb(var(--accent-primary))] hover:underline flex items-center gap-1"
                 >
                   View All
@@ -1671,7 +1671,7 @@ export default function ProducerDashboard() {
                   </p>
                   
                   <Link
-                    href="/producer/projects/new"
+                    href="/audiomarket/producer/projects/new"
                     className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
                   >
                     <PlusIcon className="w-5 h-5" />
