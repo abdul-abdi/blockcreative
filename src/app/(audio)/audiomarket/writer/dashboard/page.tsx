@@ -553,9 +553,9 @@ export default function WriterDashboard() {
   // Add the viewProjectDetails function inside the component
   const viewProjectDetails = (project: Project) => {
     if (project.id) {
-      router.push(`/writer/projects/${project.id}`);
+      router.push(`/audiomarket/writer/projects/${project.id}`);
     } else if (project._id) {
-      router.push(`/writer/projects/${project._id}`);
+      router.push(`/audiomarket/writer/projects/${project._id}`);
     } else {
       console.error('Cannot view project details - project id is missing', project);
       setError('Unable to view project details - missing project ID');

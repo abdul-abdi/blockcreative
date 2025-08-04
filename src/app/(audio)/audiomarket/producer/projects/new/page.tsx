@@ -513,7 +513,7 @@ export default function CreateProject() {
   // Navigate to the project detail page
   const goToProject = () => {
     if (!project) {
-      router.push('/producer/projects');
+      router.push('/audiomarket/producer/projects');
       return;
     }
     
@@ -521,16 +521,16 @@ export default function CreateProject() {
     const projectIdentifier = project._id || project.id || project.projectId;
     
     if (projectIdentifier) {
-      router.push(`/producer/projects/${projectIdentifier}`);
+      router.push(`/audiomarket/producer/projects/${projectIdentifier}`);
     } else {
       console.error('Project ID not found in project data:', project);
-      router.push('/producer/projects');
+      router.push('/audiomarket/producer/projects');
     }
   };
   
   // Navigate to all projects
   const goToAllProjects = () => {
-    router.push('/producer/projects');
+    router.push('/audiomarket/producer/projects');
   };
   
   // Component to show the progressive steps of project creation

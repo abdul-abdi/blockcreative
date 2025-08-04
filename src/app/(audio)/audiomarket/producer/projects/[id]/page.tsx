@@ -262,7 +262,7 @@ export default function ProjectDetails() {
       }
       
       // Redirect to projects list
-      router.push('/producer/projects');
+      router.push('audiomarket/producer/projects');
     } catch (error) {
       console.error('Error deleting project:', error);
       setError('Failed to delete project. Please try again later.');
@@ -675,7 +675,7 @@ export default function ProjectDetails() {
                         
                         <div className="mt-3 flex justify-end">
                           <Link
-                            href={`/producer/submissions/${submission.id}`}
+                            href={`/audiomarket/producer/submissions/${submission.id}`}
                             className="px-3 py-1.5 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20 transition-colors flex items-center"
                           >
                             <EyeIcon className="w-4 h-4 mr-1" />

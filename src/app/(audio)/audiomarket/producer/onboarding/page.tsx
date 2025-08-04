@@ -165,7 +165,7 @@ export default function ProducerOnboarding() {
             // If onboarding is already completed, redirect to dashboard
             if (data.user.onboarding_completed) {
               console.log('Onboarding already completed, redirecting to dashboard');
-              router.push('/producer/dashboard');
+              router.push('/audiomarket/producer/dashboard');
             }
           }
         }
@@ -331,7 +331,7 @@ export default function ProducerOnboarding() {
     setShowMarketplaceModal(false);
     setMarketplace(choice);
     if(choice === "audio"){
-      router.push('/audio/producer/dashboard');
+      router.push('/audiomarket/producer/dashboard');
     }else{
       router.push('/producer/dashboard');
     }
