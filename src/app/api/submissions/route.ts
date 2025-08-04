@@ -253,7 +253,7 @@ async function getSubmissionsForUser(request: NextRequest, user: any) {
 
     // Get filtered submissions with pagination and sorting
     const submissions = await Submission.find(filter)
-      .select('-__v')
+      .select('-__v +readByProducers')
       .skip(skip)
       .limit(limit)
       .sort({ created_at: -1 });
@@ -346,6 +346,7 @@ export async function POST(request: NextRequest) {
       synopsis, 
       genre, 
       target_audience, 
+      market, // Add market field
       runtime,
       comparables,
       key_characters,
@@ -439,6 +440,7 @@ export async function POST(request: NextRequest) {
         synopsis: synopsis || '',
         genre: genre || '',
         target_audience: target_audience || '',
+        market: market || '', // Add market field
         runtime: runtime || '',
         comparables: comparables || '',
         key_characters: key_characters || '',

@@ -54,6 +54,12 @@ interface Submission {
   };
   content?: string;
   project_id?: string | number;
+  market?: string; // Add market field
+  readByProducers?: {
+    producer_id: string;
+    read_at: Date;
+    read_hash: string;
+  }[];
 }
 
 // Extended submission interface for API responses
@@ -513,10 +519,41 @@ export default function ProducerDashboard() {
   const { user, authenticated, isLoading: isUserLoading } = useUser();
   const router = useRouter();
 
+  // Helper function to check if submission has been read by current producer
+  const hasBeenReadByCurrentProducer = (submission: ApiSubmission) => {
+    if (!user?.id || !submission.readByProducers) return false;
+    
+    return submission.readByProducers.some(
+      (entry: { producer_id: string }) => entry.producer_id === user.id
+    );
+  };
+
   // Add a function to manually refresh data
   const handleRefreshData = () => {
     setIsLoading(true);
     setDataRefreshCounter(prev => prev + 1);
+  };
+
+  // Add a function to mark a submission as read
+  const markAsRead = async (submissionId: string) => {
+    try {
+      const response = await fetch(`/api/submissions/${submissionId}/read`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-wallet-address': user?.address || ''
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to mark as read');
+      }
+      
+      // Refresh the data to update the UI
+      handleRefreshData();
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
   };
 
   // Add a function to handle project funding
@@ -949,7 +986,8 @@ export default function ProducerDashboard() {
             status: submission.status || 'pending',
             date: formattedDate || 'Unknown date',
             content: submission.content,
-            project_id: submission.project_id
+            project_id: submission.project_id,
+            market: submission.market // Add market field
           };
         });
         
@@ -1581,13 +1619,16 @@ export default function ProducerDashboard() {
                         <button
                           key={submission.id}
                           onClick={() => setSelectedSubmission(submission)}
-                          className={`px-3 sm:px-4 py-2 rounded-lg transition-all text-sm sm:text-base ${
+                          className={`px-3 sm:px-4 py-2 rounded-lg transition-all text-sm sm:text-base flex items-center gap-2 ${
                             selectedSubmission?.id === submission.id
                               ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
                               : 'bg-white/5 text-gray-400 hover:bg-white/10'
                           }`}
                         >
-                          #{index + 1} ({submission.score})
+                          <span>#{index + 1} ({submission.score})</span>
+                          {hasBeenReadByCurrentProducer(submission) && (
+                            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">Read</span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -1619,6 +1660,12 @@ export default function ProducerDashboard() {
                             <p className="text-xs sm:text-sm text-gray-400">Writer</p>
                             <p className="text-sm sm:text-base text-white">{selectedSubmission?.writer}</p>
                           </div>
+                          {selectedSubmission?.market && (
+                            <div>
+                              <p className="text-xs sm:text-sm text-gray-400">Market/Platform</p>
+                              <p className="text-sm sm:text-base text-white">{selectedSubmission?.market}</p>
+                            </div>
+                          )}
                           <div>
                             <p className="text-xs sm:text-sm text-gray-400">Overall Score</p>
                             <p className="text-xl sm:text-2xl font-bold text-[rgb(var(--accent-primary))]">
@@ -1725,21 +1772,31 @@ export default function ProducerDashboard() {
           <div className="p-6 bg-black border border-white/10 rounded-lg">
             <div className="flex justify-between items-start mb-6">
               <h2 className="text-xl font-semibold text-white">{selectedSubmission.title}</h2>
-              {selectedSubmission.status === 'pending' && (
-                <button
-                  onClick={() => handleAcceptSubmission(selectedSubmission.id)}
-                  className="px-4 py-2 bg-[rgb(var(--accent-primary))] rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity flex items-center gap-2"
-                >
-                  <CheckCircleIcon className="w-5 h-5" />
-                  Accept Submission
-                </button>
-              )}
-              {selectedSubmission.status === 'accepted' && (
-                <div className="px-4 py-2 bg-green-900/30 text-green-400 rounded-lg text-sm font-medium flex items-center gap-2">
-                  <CheckCircleIcon className="w-5 h-5" />
-                  Accepted
-                </div>
-              )}
+              <div className="flex gap-2">
+                {!hasBeenReadByCurrentProducer(selectedSubmission) && (
+                  <button
+                    onClick={() => markAsRead(selectedSubmission.id.toString())}
+                    className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity flex items-center gap-2"
+                  >
+                    Mark as Read
+                  </button>
+                )}
+                {selectedSubmission.status === 'pending' && (
+                  <button
+                    onClick={() => handleAcceptSubmission(selectedSubmission.id)}
+                    className="px-4 py-2 bg-[rgb(var(--accent-primary))] rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity flex items-center gap-2"
+                  >
+                    <CheckCircleIcon className="w-5 h-5" />
+                    Accept Submission
+                  </button>
+                )}
+                {selectedSubmission.status === 'accepted' && (
+                  <div className="px-4 py-2 bg-green-900/30 text-green-400 rounded-lg text-sm font-medium flex items-center gap-2">
+                    <CheckCircleIcon className="w-5 h-5" />
+                    Accepted
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Rest of the submission details */}
