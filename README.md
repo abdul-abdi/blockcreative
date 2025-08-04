@@ -47,9 +47,11 @@ BlockCreative is a platform that connects scriptwriters with producers, leveragi
 
 3. Set up environment variables:
    ```bash
-   cp .env.example .env.local
+   npm run setup-env
    ```
-   Then edit `.env.local` with your own values:
+   This will create a `.env` file from the template if it doesn't exist.
+   
+   Then edit `.env` with your own values:
 
    ```
    # MongoDB Configuration
@@ -98,6 +100,33 @@ BlockCreative is a platform that connects scriptwriters with producers, leveragi
    ```
 
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Environment Validation
+
+To ensure your environment is properly configured, you can validate your setup:
+
+```bash
+npm run validate-env
+```
+
+This will check that all required environment variables are set and provide feedback on any missing values.
+
+### Moving to a New Computer
+
+When setting up the project on a new computer:
+
+1. Clone the repository
+2. Run the setup script:
+   ```bash
+   npm run setup-env
+   ```
+3. Update the `.env` file with your actual values
+4. Validate your configuration:
+   ```bash
+   npm run validate-env
+   ```
+
+This approach ensures that your environment configuration remains consistent across different machines without having to manually recreate the .env file each time.
 
 ### Verification Steps
 
