@@ -8,11 +8,15 @@
     "start": "next start",
     "lint": "next lint",
     "clean": "rm -rf .next",
-    "clean:build": "npm run clean && npm run build"
+    "clean:build": "npm run clean && npm run build",
+    "setup-env": "node scripts/setup-env.js",
+    "validate-env": "node scripts/validate-env.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
+    "@headlessui/react": "^2.2.7",
     "@heroicons/react": "^2.2.0",
+    "@heroui/dropdown": "^2.3.24",
     "@react-three/drei": "^9.121.4",
     "@react-three/fiber": "^8.17.14",
     "@reown/appkit": "^1.6.9",

@@ -117,7 +117,12 @@ export default function SignUp() {
       // Check if we're already connected with a wallet address
       if (isConnected && address) {
         console.log('Using existing wallet connection:', address);
-        handleUserAuthentication(address);
+        if (address) {
+          handleUserAuthentication(address);
+        } else {
+          setIsLoading(false);
+          setError('Wallet address is undefined.');
+        }
         return;
       }
       
@@ -131,18 +136,43 @@ export default function SignUp() {
         // Step 1: Use Reown AppKit for authentication
         await appKitModal.open();
         
-        // Step 2: Once AppKit connection is successful, check if wallet is connected
-        setTimeout(() => {
-          if (isConnected && address) {
-            console.log(`Wallet connected: ${address}, with role: ${selectedRole}`);
-            // Step 3: Check the database for the user with this wallet address
-            handleUserAuthentication(address);
-          } else {
-            setIsLoading(false);
-            console.log('Wallet not connected after timeout');
-            setError('Wallet connection failed. Please try again.');
-          }
-        }, 2000);
+      // Step 2: Once AppKit connection is successful, check if wallet is connected
+      // Refactor to use a promise-based wait for wallet connection with timeout fallback
+      const waitForWalletConnection = () => {
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Wallet connection timeout'));
+          }, 10000); // 10 seconds timeout
+
+          const checkConnection = () => {
+            if (isConnected && address) {
+              clearTimeout(timeout);
+              resolve(true);
+            } else {
+              // Retry after 500ms
+              setTimeout(checkConnection, 500);
+            }
+          };
+
+          checkConnection();
+        });
+      };
+
+      try {
+        await waitForWalletConnection();
+        console.log(`Wallet connected: ${address}, with role: ${selectedRole}`);
+        // Step 3: Check the database for the user with this wallet address
+        if (address) {
+          handleUserAuthentication(address);
+        } else {
+          setIsLoading(false);
+          setError('Wallet address is undefined.');
+        }
+      } catch (err) {
+        setIsLoading(false);
+        console.log('Wallet not connected after timeout');
+        setError('Wallet connection failed. Please try again.');
+      }
       } catch (modalError) {
         console.error('AppKit modal error:', modalError);
         

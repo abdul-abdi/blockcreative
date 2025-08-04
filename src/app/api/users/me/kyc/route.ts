@@ -1,6 +1,11 @@
-//Configure the backend for the KYCimport { NextRequest } from 'next/server';
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+
 export async function GET(request: NextRequest) {
-    // your code here
-    return new Response('OK');
+  // Placeholder response for KYC GET endpoint
+  return NextResponse.json({ message: 'KYC GET endpoint placeholder' });
+}
+
+export async function POST(request: NextRequest) {
+  // Placeholder response for KYC POST endpoint
+  return NextResponse.json({ message: 'KYC POST endpoint placeholder' });
 }

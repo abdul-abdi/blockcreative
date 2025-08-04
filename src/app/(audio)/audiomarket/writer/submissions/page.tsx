@@ -225,7 +225,7 @@ export default function MySubmissions() {
             <p className="text-gray-400">Track and manage your script submissions</p>
           </div>
           <Link
-            href="/writer/projects"
+            href="/audiomarket/writer/projects"
             className="button-primary inline-flex items-center gap-2"
           >
             <DocumentTextIcon className="w-5 h-5" />
@@ -341,7 +341,7 @@ export default function MySubmissions() {
                 </p>
                 
                 <Link
-                  href="/writer/projects"
+                  href="/audiomarket/writer/projects"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-opacity shadow-lg"
                 >
                   <SparklesIcon className="w-5 h-5" />
@@ -488,14 +488,14 @@ export default function MySubmissions() {
               {/* Action Buttons */}
               <div className="flex gap-4">
                 <Link
-                  href={`/writer/scripts/${selectedSubmission.id}`}
+                  href={`/audiomarket/writer/scripts/${selectedSubmission.id}`}
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold hover:from-purple-600 hover:to-indigo-600 transition-all hover:scale-105"
                 >
                   <EyeIcon className="w-5 h-5" />
                   View Full Script
                 </Link>
                 <Link
-                  href={`/writer/submissions/${selectedSubmission.id}/revise`}
+                  href={`/audiomarket/writer/submissions/${selectedSubmission.id}/revise`}
                   className="flex items-center justify-center gap-2 px-6 py-3 bg-white/5 rounded-lg text-white hover:bg-white/10 transition-colors"
                 >
                   Edit & Resubmit

@@ -754,7 +754,7 @@ export default function ProducerDashboard() {
         // Check if onboarding is completed
         if (!userData.user.onboarding_completed) {
           console.log('Onboarding not completed, redirecting');
-          router.push('/producer/onboarding');
+          router.push('/audiomarket/producer/onboarding');
           return;
         }
         
@@ -781,7 +781,7 @@ export default function ProducerDashboard() {
             console.log('Producer not found in database, redirecting to onboarding');
             // Check if user is already in the system before redirecting
             if (userData.user && userData.user.role === 'producer') {
-              router.push('/producer/onboarding');
+              router.push('/audiomarket/producer/onboarding');
             } else {
               // Clear auth data and redirect to signup
               clearAuthData();
@@ -1254,7 +1254,7 @@ export default function ProducerDashboard() {
               <span>Switch to Script Marketplace</span>
             </Link>
             <Link
-              href="/producer/projects/new"
+              href="/audiomarket/producer/projects/new"
               className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all shadow-lg"
             >
               <PlusIcon className="w-5 h-5" />
@@ -1306,7 +1306,7 @@ export default function ProducerDashboard() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">Active Projects</h2>
                 <Link
-                  href="/producer/projects"
+                  href="/audiomarket/producer/projects"
                   className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-medium hover:from-purple-600 hover:to-indigo-600 transition-all hover:scale-105"
                 >
                   View All
@@ -1395,7 +1395,7 @@ export default function ProducerDashboard() {
                           <DocumentTextIcon className="w-3.5 h-3.5" />
                         </button>
                         <Link
-                          href={`/producer/projects/${project.id}`}
+                          href={`/audiomarket/producer/projects/${project.id}`}
                           className="inline-flex items-center gap-1 px-4 py-2 rounded-lg text-white bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] hover:opacity-90 transition-opacity text-sm font-medium"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -1410,7 +1410,7 @@ export default function ProducerDashboard() {
                     <DocumentTextIcon className="w-10 h-10 mx-auto text-gray-500 mb-3" />
                     <p className="text-gray-400 mb-4">No active projects found</p>
                     <Link
-                      href="/producer/projects/new"
+                      href="/audiomarket/producer/projects/new"
                       className="inline-flex items-center gap-1 px-6 py-2.5 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-medium hover:opacity-90 transition-opacity shadow-lg"
                     >
                       <PlusIcon className="w-5 h-5" />
@@ -1422,7 +1422,7 @@ export default function ProducerDashboard() {
                 {activeProjects.length > 3 && (
                   <div className="mt-4 text-center">
                     <Link
-                      href="/producer/projects"
+                      href="/audiomarket/producer/projects"
                       className="inline-flex items-center gap-1 px-6 py-2.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
                     >
                       View All {activeProjects.length} Projects
@@ -1445,7 +1445,7 @@ export default function ProducerDashboard() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">Top Writers</h2>
                 <Link
-                  href="/producer/writers"
+                  href="/audiomarket/producer/writers"
                   className="text-[rgb(var(--accent-primary))] hover:underline flex items-center gap-1"
                 >
                   View All
@@ -1547,7 +1547,7 @@ export default function ProducerDashboard() {
                       As your projects receive submissions, you'll see your top writers appear here.
                     </p>
                     <Link
-                      href="/producer/writers"
+                      href="/audiomarket/producer/writers"
                       className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-medium hover:opacity-90 transition-opacity shadow-lg"
                     >
                       <UserGroupIcon className="w-5 h-5" />
@@ -1653,7 +1653,7 @@ export default function ProducerDashboard() {
                     This project hasn't received any submissions yet. Writers will be able to submit their scripts once they discover your project.
                   </p>
                   <Link
-                    href={`/producer/projects/${selectedProject.id}`}
+                    href={`/audiomarket/producer/projects/${selectedProject.id}`}
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-opacity"
                   >
                     <SparklesIcon className="w-5 h-5" />
@@ -1670,7 +1670,7 @@ export default function ProducerDashboard() {
                   </p>
                   
                   <Link
-                    href="/producer/projects/new"
+                    href="/audiomarket/producer/projects/new"
                     className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
                   >
                     <PlusIcon className="w-5 h-5" />

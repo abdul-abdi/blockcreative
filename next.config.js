@@ -26,7 +26,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    optimizeCss: false,
+    optimizeCss: true,
     scrollRestoration: true,
     optimizePackageImports: ['@heroicons/react', 'framer-motion'],
   },
@@ -87,6 +87,18 @@ const nextConfig = {
         ],
       },
     ];
+  },
+  env: {
+    DB_HOST: process.env.DB_HOST,
+    DB_NAME: process.env.DB_NAME,
+    API_URL: process.env.API_URL,
+    JWT_SECRET: process.env.JWT_SECRET,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    AUTH_DEMO_APP: process.env.AUTH_DEMO_APP,
+    DPO_COMPANY_TOKEN: process.env.DPO_COMPANY_TOKEN,
+    DPO_SERVICE_TYPE: process.env.DPO_SERVICE_TYPE,
+    NEXT_PUBLIC_APP_HOST: process.env.NEXT_PUBLIC_APP_HOST,
   },
 };
 

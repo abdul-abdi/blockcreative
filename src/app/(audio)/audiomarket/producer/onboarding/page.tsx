@@ -165,7 +165,7 @@ export default function ProducerOnboarding() {
             // If onboarding is already completed, redirect to dashboard
             if (data.user.onboarding_completed) {
               console.log('Onboarding already completed, redirecting to dashboard');
-              router.push('/producer/dashboard');
+              router.push('/audiomarket/producer/dashboard');
             }
           }
         }

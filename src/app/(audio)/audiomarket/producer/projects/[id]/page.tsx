@@ -262,7 +262,7 @@ export default function ProjectDetails() {
       }
       
       // Redirect to projects list
-      router.push('/producer/projects');
+      router.push('audiomarket/producer/projects');
     } catch (error) {
       console.error('Error deleting project:', error);
       setError('Failed to delete project. Please try again later.');
@@ -339,7 +339,7 @@ export default function ProjectDetails() {
             <p className="text-red-300">{error}</p>
           </div>
           <Link 
-            href="/producer/projects"
+            href="/audiomarket/producer/projects"
             className="px-4 py-2 rounded-lg text-white bg-gray-700 hover:bg-gray-600 transition-colors mt-4 inline-flex items-center"
           >
             <ArrowLongLeftIcon className="w-5 h-5 mr-2" />
@@ -356,7 +356,7 @@ export default function ProjectDetails() {
         <div className="p-6 text-center">
           <p className="text-gray-400 mb-4">Project not found</p>
           <Link 
-            href="/producer/projects"
+            href="/audiomarket/producer/projects"
             className="px-4 py-2 rounded-lg text-white bg-gray-700 hover:bg-gray-600 transition-colors mt-4 inline-flex items-center"
           >
             <ArrowLongLeftIcon className="w-5 h-5 mr-2" />
@@ -367,13 +367,13 @@ export default function ProjectDetails() {
     );
   }
 
-  return (
+  return(
     <DashboardLayout userType="producer">
       <div className="container mx-auto px-4 sm:px-6 py-6 relative">
         {/* Back button and action buttons */}
         <div className="flex justify-between items-center mb-6">
           <Link 
-            href="/producer/projects"
+            href="/audiomarket/producer/projects"
             className="flex items-center text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLongLeftIcon className="w-5 h-5 mr-2" />
@@ -675,7 +675,7 @@ export default function ProjectDetails() {
                         
                         <div className="mt-3 flex justify-end">
                           <Link
-                            href={`/producer/submissions/${submission.id}`}
+                            href={`/audiomarket/producer/submissions/${submission.id}`}
                             className="px-3 py-1.5 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20 transition-colors flex items-center"
                           >
                             <EyeIcon className="w-4 h-4 mr-1" />

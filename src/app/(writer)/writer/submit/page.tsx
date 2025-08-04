@@ -56,6 +56,7 @@ interface ScriptData {
   projectTitle: string | null;
   runtime?: string;
   comparables?: string;
+  market?: string; // Add market field
   skipAiAnalysis?: boolean;
   aiAnalysis: {
     overall?: number;
@@ -81,6 +82,7 @@ const initialScriptData: ScriptData = {
   content: '',
   runtime: '',
   comparables: '',
+  market: '', // Initialize market field
   skipAiAnalysis: false,
   aiAnalysis: {
     overall: 0,
@@ -317,6 +319,7 @@ const SubmitScript = () => {
     synopsis: '',
     projectId: null,
     projectTitle: null,
+    market: '', // Initialize market field
     aiAnalysis: {},
   });
   
@@ -715,6 +718,7 @@ const SubmitScript = () => {
         synopsis: scriptData.synopsis,
         genre: scriptData.genre,
         target_audience: scriptData.targetAudience, // API expects snake_case
+        market: scriptData.market, // Add market field
         runtime: scriptData.runtime || '',
         comparables: scriptData.comparables || '',
         analysis: scriptData.aiAnalysis
@@ -900,6 +904,22 @@ const SubmitScript = () => {
             <p className="text-sm text-gray-400 mt-1">Specify the intended audience demographic for your script</p>
               </div>
               
+          {/* Market/Platform */}
+          <div className="mt-4">
+            <label htmlFor="market" className="block text-white font-medium mb-2">
+              Market/Platform (Optional)
+            </label>
+            <input
+              id="market"
+              type="text"
+              value={scriptData.market || ''}
+              onChange={(e) => setScriptData({...scriptData, market: e.target.value})}
+              placeholder="e.g., Netflix, Amazon Prime, Theaters, etc."
+              className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white"
+            />
+            <p className="text-sm text-gray-400 mt-1">Specify the intended market or platform for your script</p>
+          </div>
+          
           {/* Logline */}
           <div className="mt-4">
             <label htmlFor="logline" className="block text-white font-medium mb-2">
@@ -1250,6 +1270,10 @@ const SubmitScript = () => {
                   <div>
                   <p className="text-gray-400 text-sm">Target Audience</p>
                   <p className="text-white">{scriptData.targetAudience}</p>
+                  </div>
+                  <div>
+                  <p className="text-gray-400 text-sm">Market/Platform</p>
+                  <p className="text-white">{scriptData.market || 'Not specified'}</p>
                   </div>
                     <div>
                   <p className="text-gray-400 text-sm">Project</p>
