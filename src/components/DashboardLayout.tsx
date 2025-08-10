@@ -47,17 +47,17 @@ const writerNavItems = [
 ];
 
 const audioProducerNavItems = [
-  { name: 'Dashboard', href: '/producer/dashboard', icon: HomeIcon },
-  { name: 'Active Projects', href: '/producer/projects', icon: FolderIcon },
-  { name: 'Find Writers', href: '/producer/writers', icon: UserGroupIcon },
-  { name: 'Settings', href: '/producer/settings', icon: Cog6ToothIcon },
+  { name: 'Dashboard', href: '/audiomarket/producer/dashboard', icon: HomeIcon },
+  { name: 'Active Projects', href: '/audiomarket/producer/projects', icon: FolderIcon },
+  { name: 'Find Writers', href: '/audiomarket/producer/writers', icon: UserGroupIcon },
+  { name: 'Settings', href: '/audiomarket/producer/settings', icon: Cog6ToothIcon },
 ];
 
 const audioWriterNavItems = [
   { name: 'Dashboard', href: '/audiomarket/writer/dashboard', icon: HomeIcon },
   { name: 'Premium', href: '/audiomarket/writer/premium', icon: StarIcon },
   { name: 'Uploads', href: '/audiomarket/writer/uploads', icon: ArrowUpTrayIcon },
-  { name: 'Explore', href: '/audiomarket/writer/explore', icon: ArrowUpTrayIcon },
+  { name: 'Explore', href: '/audiomarket/writer/projects', icon: FolderIcon },
   { name: 'Settings', href: '/audiomarket/writer/settings', icon: Cog6ToothIcon },
 ];
 
@@ -72,6 +72,16 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
  
   const {marketplace, setMarketplace} = useMarketplace();
 
+  // Ensure marketplace context aligns with the current route
+  useEffect(() => {
+    if (!pathname) return;
+    if (pathname.startsWith('/audiomarket/')) {
+      setMarketplace('audio');
+    } else {
+      setMarketplace('script');
+    }
+  }, [pathname, setMarketplace]);
+
   let navItems;
   if(marketplace === 'audio'){
     navItems = userType === 'producer' ? audioProducerNavItems : audioWriterNavItems
@@ -80,6 +90,8 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
   }
 
   const settingsLink = marketplace === 'audio' ? `/audiomarket/${userType}/settings`: `/${userType}/settings`;
+
+  const dashboardLink = marketplace === 'audio' ? `/audiomarket/${userType}/dashboard` : `/${userType}/dashboard`;
   
   // User data from localStorage
   const [userName, setUserName] = useState('');
@@ -279,7 +291,7 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
         >
           {/* Sidebar Header */}
           <div className="flex items-center justify-between p-6 border-b border-white/10">
-            <Link href={`/${userType}/dashboard`} className="flex items-center gap-3 overflow-hidden">
+            <Link href={dashboardLink} className="flex items-center gap-3 overflow-hidden">
               <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] flex items-center justify-center shadow-lg">
                 <span className="text-lg font-bold text-white">BC</span>
               </div>
@@ -401,7 +413,7 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
                 <div className="hidden md:block">
                   {userType === 'producer' ? (
                     <Link
-                      href="/producer/projects/new"
+                      href={marketplace === 'audio' ? '/audiomarket/producer/projects/new' : '/producer/projects/new'}
                       className="px-4 py-2 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] hover:opacity-90 text-white flex items-center gap-2 transition-opacity font-medium"
                     >
                       <PlusIcon className="h-4 w-4" />
@@ -409,11 +421,11 @@ export default function DashboardLayout({ children, userType }: DashboardLayoutP
                     </Link>
                   ) : (
                     <Link
-                      href="/writer/submit"
+                      href={marketplace === 'audio' ? '/audiomarket/writer/submit' : '/writer/submit'}
                       className="px-4 py-2 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] hover:opacity-90 text-white flex items-center gap-2 transition-opacity font-medium"
                     >
                       <PlusIcon className="h-4 w-4" />
-                      <span>Submit Script</span>
+                      <span>{marketplace === 'audio' ? 'Submit Audio' : 'Submit Script'}</span>
                     </Link>
                   )}
                 </div>

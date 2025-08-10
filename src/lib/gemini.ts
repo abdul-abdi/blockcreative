@@ -212,6 +212,60 @@ export function cacheAnalysisResult(
 }
 
 /**
+ * Transcribes an audio buffer to text using Gemini 1.5 multimodal input
+ */
+export async function transcribeAudioToText(
+  audioBuffer: Buffer,
+  mimeType: string = 'audio/mpeg',
+  options: { redactOnSafety?: boolean } = { redactOnSafety: true }
+): Promise<{ success: boolean; text?: string; error?: string }> {
+  const tryOnce = async (redact: boolean) => {
+    const model = genAI?.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      ...modelConfig,
+      // Use more permissive safety thresholds for transcription
+      safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+      ],
+    } as any);
+    if (!model) throw new Error('Failed to initialize Gemini model');
+
+    const base64 = Buffer.from(audioBuffer).toString('base64');
+    const instruction = redact
+      ? 'Transcribe the following audio. If any content would be blocked by safety filters, replace only the unsafe words with [redacted] and continue. Return only the transcript.'
+      : 'Transcribe the following audio verbatim. Return only the raw transcript text with no additional commentary.';
+
+    const result = await model.generateContent([
+      { text: instruction } as any,
+      { inlineData: { mimeType, data: base64 } } as any,
+    ] as any);
+
+    const response = await result.response;
+    return response.text();
+  };
+
+  try {
+    const text = await tryOnce(false);
+    return { success: true, text };
+  } catch (e: any) {
+    const msg = e?.message || String(e);
+    // Retry with redaction if safety blocked
+    if (options.redactOnSafety && /SAFETY|blocked/i.test(msg)) {
+      try {
+        const text = await tryOnce(true);
+        return { success: true, text };
+      } catch (e2: any) {
+        return { success: false, error: e2?.message || 'Transcription failed after safety fallback' };
+      }
+    }
+    return { success: false, error: msg };
+  }
+}
+
+/**
  * Analyzes a script using Google's Gemini API with caching and retry logic
  * @param scriptContent The content of the script to analyze
  * @param options Additional options for analysis

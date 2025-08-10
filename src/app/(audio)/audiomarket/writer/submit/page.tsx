@@ -30,6 +30,7 @@ import {
 import DashboardLayout from '@/components/DashboardLayout';
 import Link from 'next/link';
 import { useUser } from '@/lib/hooks/useUser';
+import { useAudioPlayer } from '@/context/audioPlayer';
 
 
 interface Project {
@@ -98,9 +99,9 @@ const initialScriptData: ScriptData = {
 };
 
 const steps = [
-  { id: 'details', title: 'Script Details', icon: DocumentTextIcon, description: 'Basic script information' },
-  { id: 'upload', title: 'Upload Script', icon: ClipboardDocumentListIcon, description: 'Script content and format' },
-  { id: 'analysis', title: 'AI Analysis', icon: ChartBarIcon, description: 'AI-powered script analysis' },
+  { id: 'details', title: 'Audio Details', icon: DocumentTextIcon, description: 'Basic audio information' },
+  { id: 'upload', title: 'Upload Audio', icon: ClipboardDocumentListIcon, description: 'Audio file and format' },
+  { id: 'analysis', title: 'AI Audio Analysis', icon: ChartBarIcon, description: 'AI-powered analysis' },
   { id: 'review', title: 'Review & Submit', icon: PaperAirplaneIcon, description: 'Submit to project' },
 ];
 
@@ -186,6 +187,9 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
     )
   }
   
+  const { play } = useAudioPlayer();
+  const audioUrl = `/api/audio/submissions?id=${submissionId}`;
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -197,10 +201,8 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
         <div className="w-20 h-20 bg-[rgb(var(--accent-primary))]/20 rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckIcon className="w-10 h-10 text-[rgb(var(--accent-primary))]" />
           </div>
-        <h2 className="text-2xl font-bold text-white mb-3">Script Submitted Successfully!</h2>
-        <p className="text-gray-300 max-w-md mx-auto">
-          Your script has been submitted{projectTitle ? ` to "${projectTitle}"` : ''} for review. We'll notify you when there's an update.
-          </p>
+        <h2 className="text-2xl font-bold text-white mb-3">Audio Submitted Successfully!</h2>
+        <p className="text-gray-300 max-w-md mx-auto">Your audio has been submitted{projectTitle ? ` to "${projectTitle}"` : ''}.</p>
         </div>
           
           <div className="space-y-6">
@@ -210,52 +212,19 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
           <p className="text-white font-mono">{submissionId}</p>
               </div>
         
-        {/* NFT Status */}
-        <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-          <p className="text-sm text-gray-400 mb-2">Blockchain NFT Status</p>
-          
-          {nftStatus === "pending" && (
-            <div className="flex items-center">
-              <ArrowPathIcon className="w-5 h-5 text-amber-400 animate-spin mr-2" />
-              <span className="text-amber-400">Minting NFT on blockchain...</span>
-              </div>
-          )}
-          
-          {nftStatus === "minted" && (
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <CheckCircleIcon className="w-5 h-5 text-green-400 mr-2" />
-                <span className="text-green-400">NFT Minted Successfully!</span>
-              </div>
-              {tokenId && (
-              <div>
-                  <p className="text-sm text-gray-400 mt-2">Token ID</p>
-                  <p className="text-white font-mono">{tokenId}</p>
-              </div>
-              )}
-              {transactionHash && (
-                <div>
-                  <p className="text-sm text-gray-400 mt-2">Transaction Hash</p>
-                  <a 
-                    href={`https://etherscan.io/tx/${transactionHash}`} 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="text-[rgb(var(--accent-primary))] hover:underline font-mono text-sm block truncate"
-                  >
-                    {transactionHash}
-                  </a>
-            </div>
-              )}
-            </div>
-          )}
-          
-          {nftStatus === "failed" && (
-            <div className="flex items-center">
-              <XCircleIcon className="w-5 h-5 text-red-400 mr-2" />
-              <span className="text-red-400">NFT minting failed. Please contact support.</span>
-              </div>
-          )}
-            </div>
+        {/* Play uploaded audio */}
+        <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-400 mb-1">Your audio is ready</p>
+            <p className="text-white text-sm break-all">{audioUrl}</p>
+          </div>
+          <button
+            onClick={() => play({ title: projectTitle ? `${projectTitle} - Audio` : 'Uploaded Audio', audioUrl })}
+            className="px-4 py-2 bg-[rgb(var(--accent-primary))] hover:bg-[rgb(var(--accent-primary))]/90 text-white rounded-lg"
+          >
+            Play Uploaded Audio
+          </button>
+        </div>
             
         {/* Next Steps */}
         <div className="space-y-3 mt-8">
@@ -351,6 +320,9 @@ const SubmitScript = () => {
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [isWalletConnecting, setIsWalletConnecting] = useState(false);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const [durationSeconds, setDurationSeconds] = useState<number | undefined>(undefined);
   
   // Connect wallet function
   const connectWallet = async () => {
@@ -517,24 +489,18 @@ const SubmitScript = () => {
         }
       }
       
-      // Validate script content for Step 2 before proceeding
-      if (currentStep === 2 && !scriptData.content) {
-        setError("Please enter your script content");
+      // Validate audio file for Step 2 before proceeding
+      if (currentStep === 2 && !audioFile) {
+        setError("Please upload an audio file");
         return;
       }
       
       // Clear any previous errors
       setError("");
       
-      // If moving from Step 2 to AI Analysis, check if we should skip analysis
+      // After upload, go to AI analysis step
       if (currentStep === 2) {
-        if (scriptData.skipAiAnalysis) {
-          // Skip to step 4 (Review & Submit)
-          setCurrentStep(4);
-        } else {
-          // Just go to step 3, no authentication needed for AI Analysis
-          setCurrentStep(3);
-        }
+        setCurrentStep(3);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
@@ -669,16 +635,8 @@ const SubmitScript = () => {
     setError("");
 
     // Validate required fields
-    if (!scriptData.title || !scriptData.genre || !scriptData.content || !scriptData.logline 
-        || !scriptData.targetAudience || !scriptData.synopsis || !scriptData.projectId) {
+    if (!scriptData.title || !scriptData.genre || !scriptData.projectId || !audioFile) {
       setError("Please fill in all required fields");
-      setIsSubmitting(false);
-      return;
-    }
-    
-    // Check AI analysis completion only if not skipped
-    if (!scriptData.skipAiAnalysis && (!scriptData.aiAnalysis || !scriptData.aiAnalysis.overall)) {
-      setError("Please complete the AI analysis step before submitting");
       setIsSubmitting(false);
       return;
     }
@@ -688,7 +646,7 @@ const SubmitScript = () => {
       const walletAddress = localStorage.getItem('walletAddress');
       
       if (!walletAddress) {
-        setError("Please connect your wallet to submit your script");
+        setError("Please connect your wallet to submit your audio");
         setIsSubmitting(false);
         return;
       }
@@ -724,27 +682,24 @@ const SubmitScript = () => {
       
       console.log("User authenticated successfully, proceeding with submission");
 
-      // Prepare submission data with field names matching API expectations
-      const submissionData = {
-        title: scriptData.title,
-        content: scriptData.content,
-        project_id: scriptData.projectId, // API expects snake_case
-        logline: scriptData.logline,
-        synopsis: scriptData.synopsis,
-        genre: scriptData.genre,
-        target_audience: scriptData.targetAudience, // API expects snake_case
-        runtime: scriptData.runtime || '',
-        comparables: scriptData.comparables || '',
-        analysis: scriptData.aiAnalysis
-      };
-      
-      // Use the correct API endpoint from the documentation
-      const response = await fetch("/api/submissions", {
-        method: "POST",
-        headers,
-        body: JSON.stringify(submissionData),
-        credentials: 'include',
-        cache: 'no-store',
+      // Build form data for file upload
+      const form = new FormData();
+      form.append('title', scriptData.title);
+      form.append('description', scriptData.synopsis || '');
+      form.append('creatorAddress', walletAddress);
+      form.append('tags', '');
+      if (typeof durationSeconds === 'number') {
+        form.append('durationSeconds', String(durationSeconds));
+      }
+      form.append('audio', audioFile);
+
+      const response = await fetch('/api/audio/submissions', {
+        method: 'POST',
+        headers: {
+          'x-wallet-address': walletAddress,
+          'x-user-role': 'writer',
+        },
+        body: form,
       });
       
       if (!response.ok) {
@@ -753,31 +708,11 @@ const SubmitScript = () => {
       }
 
       const data = await response.json();
-      
-      setSubmissionId(data.submission_id);
+      setSubmissionId(data.id);
       setSubmissionSuccess(true);
-      
-      // Initiate NFT minting with the same authentication pattern
-      try {
-        if (data.submission_id) {
-          await fetch("/api/nft/mint", {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              submission_id: data.submission_id,
-              title: scriptData.title,
-              content: scriptData.content,
-            }),
-            credentials: 'include',
-            cache: 'no-store',
-          });
-        }
-      } catch (nftError) {
-        console.error("NFT minting initiation failed:", nftError);
-      }
     } catch (error: any) {
-      console.error("Script submission error:", error);
-      setError(error.message || "Failed to submit script");
+      console.error("Audio submission error:", error);
+      setError(error.message || "Failed to submit audio");
       
       // If user not found, redirect to signup
       if (error.message.includes("User not found")) {
@@ -791,43 +726,43 @@ const SubmitScript = () => {
 
   // Update the renderStepContent function to match the screenshot styling
   const renderStepContent = () => {
-    // Step 1: Script Details (styled to match screenshot)
+    // Step 1: Audio Details
     if (currentStep === 1) {
         return (
           <div className="space-y-6">
-          <h2 className="text-xl font-bold text-white">Script Details</h2>
-          <p className="text-gray-400 mb-6">Provide basic information about your script</p>
+          <h2 className="text-xl font-bold text-white">Audio Details</h2>
+          <p className="text-gray-400 mb-6">Provide basic information about your audio</p>
           
-          {/* Script Title */}
+          {/* Title */}
           <div className="mb-6">
             <label htmlFor="title" className="block text-white font-medium mb-2">
-              Script Title <span className="text-red-500">*</span>
+              Title <span className="text-red-500">*</span>
                   </label>
                   <input
               id="title"
                     type="text"
                     value={scriptData.title}
               onChange={(e) => setScriptData({...scriptData, title: e.target.value})}
-              placeholder="Enter a descriptive title for your script"
+              placeholder="Enter a descriptive title for your audio"
               className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white"
                     required
                   />
                 </div>
                 
-          {/* Script Description / Synopsis */}
+          {/* Description */}
           <div className="mb-6">
             <label htmlFor="synopsis" className="block text-white font-medium mb-2">
-              Script Description <span className="text-red-500">*</span>
+              Description <span className="text-red-500">*</span>
             </label>
             <textarea
               id="synopsis"
               value={scriptData.synopsis}
               onChange={(e) => setScriptData({...scriptData, synopsis: e.target.value})}
-              placeholder="Describe your script and what you're looking for in detail"
+              placeholder="Describe your audio and any relevant details"
               className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white h-36"
               required
             />
-            <p className="text-gray-400 text-sm mt-1">Provide a comprehensive overview of your script to help producers understand your vision</p>
+            <p className="text-gray-400 text-sm mt-1">Provide a comprehensive overview to help producers understand your audio</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -844,17 +779,23 @@ const SubmitScript = () => {
                     required
                   >
                     <option value="">Select a genre</option>
-                    <option value="Action">Action</option>
-                    <option value="Comedy">Comedy</option>
-                    <option value="Drama">Drama</option>
-                    <option value="Fantasy">Fantasy</option>
-                <option value="Horror">Horror</option>
-                    <option value="Romance">Romance</option>
-                <option value="Sci-Fi">Science Fiction</option>
-                <option value="Thriller">Thriller</option>
-                    <option value="Documentary">Documentary</option>
-                    <option value="Animation">Animation</option>
-                <option value="Other">Other</option>
+                    <option value="Solo Verse">Solo Verse</option>
+                    <option value="Duet">Duet</option>
+                    <option value="Chorus">Chorus</option>
+                    <option value="Rap">Rap</option>
+                    <option value="Spoken Word">Spoken Word</option>
+                    <option value="Pop">Pop</option>
+                    <option value="Rock">Rock</option>
+                    <option value="Hip-Hop">Hip-Hop</option>
+                    <option value="R&B">R&amp;B</option>
+                    <option value="Jazz">Jazz</option>
+                    <option value="Classical">Classical</option>
+                    <option value="Electronic">Electronic</option>
+                    <option value="Country">Country</option>
+                    <option value="Folk">Folk</option>
+                    <option value="World">World</option>
+                    <option value="Experimental">Experimental</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
                 
@@ -937,30 +878,45 @@ const SubmitScript = () => {
       );
     }
     
-    // Step 2: Upload Script
+    // Step 2: Upload Audio
     if (currentStep === 2) {
       return (
         <div className="space-y-6">
-          <h2 className="text-xl font-bold text-white">Upload Script</h2>
-          <p className="text-gray-400 mb-6">Enter your complete script content below</p>
+          <h2 className="text-xl font-bold text-white">Upload Audio</h2>
+          <p className="text-gray-400 mb-6">Upload an audio file from your device</p>
           
           <div className="flex flex-col space-y-6">
-            {/* Script content textarea */}
-                <div>
-              <label htmlFor="scriptContent" className="block text-white font-medium mb-2">
-                Script Content <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                id="scriptContent"
-                value={scriptData.content}
-                onChange={(e) => setScriptData({...scriptData, content: e.target.value})}
-                placeholder="Paste or type your full script here..."
-                className="w-full px-4 py-3 bg-black/30 border border-white/10 rounded-lg focus:outline-none focus:border-[rgb(var(--accent-primary))] text-white h-[500px] font-mono"
-                    required
-                  />
-              <p className="text-sm text-gray-400 mt-2">
-                Enter your complete script content. This will be analyzed by our AI to provide feedback and insights.
-              </p>
+            {/* File input */}
+            <div>
+              <label htmlFor="audioFile" className="block text-white font-medium mb-2">Audio File <span className="text-red-500">*</span></label>
+              <input
+                id="audioFile"
+                type="file"
+                accept="audio/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null;
+                  setAudioFile(f || null);
+                  if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
+                  if (f) {
+                    const url = URL.createObjectURL(f);
+                    setAudioPreviewUrl(url);
+                    // Try to read duration
+                    const audio = document.createElement('audio');
+                    audio.src = url;
+                    audio.addEventListener('loadedmetadata', () => {
+                      if (isFinite(audio.duration)) setDurationSeconds(Math.round(audio.duration));
+                    });
+                  } else {
+                    setAudioPreviewUrl(null);
+                    setDurationSeconds(undefined);
+                  }
+                }}
+                className="w-full text-white"
+                required
+              />
+              {audioPreviewUrl && (
+                <audio src={audioPreviewUrl} controls className="mt-3 w-full" />
+              )}
             </div>
             
             {/* Optional fields */}
@@ -994,35 +950,12 @@ const SubmitScript = () => {
                 </div>
                 </div>
             
-            {/* AI Analysis Option */}
-            <div className="mt-6 p-5 border border-white/10 bg-black/30 rounded-lg">
-              <label className="flex items-start">
-                <input
-                  type="checkbox"
-                  checked={!scriptData.skipAiAnalysis}
-                  onChange={(e) => setScriptData({...scriptData, skipAiAnalysis: !e.target.checked})}
-                  className="mt-1 w-4 h-4 text-[rgb(var(--accent-primary))] bg-black/30 border-white/10 rounded focus:ring-[rgb(var(--accent-primary))]"
-                />
-                <div className="ml-3">
-                  <p className="text-white font-medium">Enable AI Script Analysis</p>
-                  <p className="text-gray-400 text-sm mt-1">
-                    Our AI will analyze your script to provide feedback on structure, character development, 
-                    marketability, and more. This can help improve your script and increase its chances of being selected.
-                    </p>
-                  </div>
-                </label>
-                </div>
-                
             <div className="mt-2 p-4 border border-amber-600/30 bg-amber-500/10 rounded-lg">
               <div className="flex items-start">
                 <InformationCircleIcon className="w-5 h-5 text-amber-500 mr-3 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-amber-300 font-medium">Important Note</p>
-                  <p className="text-amber-200/80 text-sm mt-1">
-                    {scriptData.skipAiAnalysis 
-                      ? "You've chosen to skip AI analysis. Your script will be submitted directly without AI feedback."
-                      : "In the next step, our AI will analyze your script to provide feedback. Please ensure your script is complete and formatted properly for the best analysis results."}
-                  </p>
+                  <p className="text-amber-200/80 text-sm mt-1">Only audio files are accepted here.</p>
                 </div>
                 </div>
               </div>
@@ -1031,19 +964,18 @@ const SubmitScript = () => {
         );
     }
       
-    // Step 3: AI Analysis
+    // Step 3: AI Audio Analysis (reuses script analysis but with audio context)
     if (currentStep === 3) {
-        return (
-          <div className="space-y-6">
-          <h2 className="text-xl font-bold text-white">AI Script Analysis</h2>
-          <p className="text-gray-400 mb-6">Get AI-powered insights into your script</p>
-          
-          {/* Show error message prominently if there is one */}
+      return (
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold text-white">AI Audio Analysis</h2>
+          <p className="text-gray-400 mb-6">Get AI-powered insights about your audio (structure, mood, marketability)</p>
+
           {error && (
             <div className="mb-6 p-4 bg-red-900/20 border border-red-700 rounded-lg flex items-start gap-3">
               <ExclamationCircleIcon className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
               <div>
-                <p className="text-red-300 font-medium">Error analyzing script</p>
+                <p className="text-red-300 font-medium">Error analyzing audio</p>
                 <p className="text-red-300 mt-1">{error}</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button
@@ -1052,196 +984,81 @@ const SubmitScript = () => {
                   >
                     Clear error
                   </button>
-                  {(error.includes("AI service") || error.includes("AI model")) && (
-                    <button
-                      onClick={useFallbackAnalysis}
-                      className="text-green-300 hover:text-green-200 text-sm px-3 py-1 border border-green-700/50 rounded flex items-center"
-                    >
-                      <ChartBarIcon className="w-4 h-4 mr-1" />
-                      Use Fallback Analysis
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setScriptData(prev => ({...prev, skipAiAnalysis: true}));
-                      setCurrentStep(4); // Skip to review step
-                    }}
-                    className="text-amber-300 hover:text-amber-200 text-sm px-3 py-1 border border-amber-700/50 rounded flex items-center"
-                  >
-                    <ArrowRightIcon className="w-4 h-4 mr-1" />
-                    Skip AI Analysis
-                  </button>
-                  </div>
-                    </div>
-                  </div>
-                )}
-              
+                </div>
+              </div>
+            </div>
+          )}
+
           {!scriptData.aiAnalysis?.overall ? (
             <div className="flex flex-col items-center justify-center py-10">
               <div className="bg-black/30 border border-white/10 rounded-xl p-8 max-w-xl w-full text-center">
                 <ChartBarIcon className="w-16 h-16 text-[rgb(var(--accent-primary))] mx-auto mb-6" />
-                <h3 className="text-lg font-medium text-white mb-3">AI Script Analysis</h3>
-                <p className="text-gray-400 mb-6">
-                  Our AI will analyze your script to provide feedback on structure, character development, 
-                  marketability, and more. This can help improve your script and increase its chances of being selected.
-                  <br/><br/>
-                  <span className="text-amber-300">Note: This feature is available without authentication.</span>
-                </p>
-                
+                <h3 className="text-lg font-medium text-white mb-3">AI Audio Analysis</h3>
+                <p className="text-gray-400 mb-6">We will analyze your audio’s characteristics. Click below to start.</p>
                 {isAnalyzing ? (
                   <div className="flex flex-col items-center">
                     <div className="w-16 h-16 relative mb-4">
                       <div className="absolute inset-0 border-t-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
                     </div>
-                    <p className="text-white font-medium">Analyzing your script...</p>
-                    <p className="text-gray-400 text-sm mt-2">This may take a minute or two depending on the length of your script.</p>
+                    <p className="text-white font-medium">Analyzing your audio...</p>
                   </div>
                 ) : (
-                      <button 
-                        onClick={analyzeScript}
+                  <button 
+                    onClick={async () => {
+                      if (!audioFile) {
+                        setError('Please upload an audio file first');
+                        return;
+                      }
+                      setIsAnalyzing(true);
+                      setError("");
+                      try {
+                        const form = new FormData();
+                        form.append('audio', audioFile);
+                        if (scriptData.projectId) form.append('projectId', String(scriptData.projectId));
+                        if (scriptData.title) form.append('title', scriptData.title);
+                        if (scriptData.genre) form.append('genre', scriptData.genre);
+                        if (scriptData.synopsis) form.append('synopsis', scriptData.synopsis);
+                        if (scriptData.targetAudience) form.append('targetAudience', scriptData.targetAudience);
+
+                        const response = await fetch('/api/ai/audio/analyze', {
+                          method: 'POST',
+                          body: form,
+                        });
+                        if (!response.ok) {
+                          const err = await response.json().catch(() => ({}));
+                          throw new Error(err.error || err.message || 'Failed to analyze audio');
+                        }
+                        const result = await response.json();
+                        setScriptData(prev => ({ ...prev, aiAnalysis: result.result || result.analysis || result }));
+                      } catch (e: any) {
+                        setError(e?.message || 'Failed to analyze audio');
+                      } finally {
+                        setIsAnalyzing(false);
+                      }
+                    }}
                     className="px-8 py-3 bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] rounded-lg text-white font-medium hover:opacity-90 transition-opacity inline-flex items-center gap-2"
-                      >
+                  >
                     <ChartBarIcon className="w-5 h-5" />
                     Start AI Analysis
-                      </button>
+                  </button>
                 )}
               </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-8">
-              {/* Overall Score */}
+            </div>
+          ) : (
+            <div className="space-y-8">
               <div className="bg-black/30 border border-white/10 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-medium text-white">Overall Score</h3>
                   <div className="bg-[rgb(var(--accent-primary))]/20 px-3 py-1 rounded-full">
                     <span className="text-[rgb(var(--accent-primary))] font-semibold">{scriptData.aiAnalysis?.overall}/100</span>
-                          </div>
-                        </div>
+                  </div>
+                </div>
                 <p className="text-gray-400">{scriptData.aiAnalysis?.analysis}</p>
-                      </div>
-                      
-                      {/* Score Breakdown */}
-              <div className="bg-black/30 border border-white/10 rounded-xl p-6">
-                <h3 className="text-lg font-medium text-white mb-6">Score Breakdown</h3>
-                
-                        <div className="space-y-5">
-                  {/* Creativity */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-white">Creativity</span>
-                      <span className="text-[rgb(var(--accent-primary))]">{scriptData.aiAnalysis?.creativity}/100</span>
-                                </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] h-2 rounded-full" 
-                        style={{ width: `${scriptData.aiAnalysis?.creativity ?? 0}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                  
-                  {/* Structure */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-white">Structure</span>
-                      <span className="text-[rgb(var(--accent-primary))]">{scriptData.aiAnalysis?.structure}/100</span>
-                        </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] h-2 rounded-full" 
-                        style={{ width: `${scriptData.aiAnalysis?.structure ?? 0}%` }}
-                      ></div>
-                      </div>
-                    </div>
-                  
-                  {/* Character Development */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-white">Character Development</span>
-                      <span className="text-[rgb(var(--accent-primary))]">{scriptData.aiAnalysis?.character_development}/100</span>
-                    </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] h-2 rounded-full" 
-                        style={{ width: `${scriptData.aiAnalysis?.character_development ?? 0}%` }}
-                      ></div>
-                    </div>
-                </div>
-                
-                  {/* Marketability */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-white">Marketability</span>
-                      <span className="text-[rgb(var(--accent-primary))]">{scriptData.aiAnalysis?.marketability}/100</span>
-                    </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] h-2 rounded-full" 
-                        style={{ width: `${scriptData.aiAnalysis?.marketability ?? 0}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
               </div>
-              
-              {/* Strengths & Weaknesses */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Strengths */}
-                <div className="bg-black/30 border border-white/10 rounded-xl p-6">
-                  <h3 className="text-lg font-medium text-white mb-4 flex items-center">
-                    <CheckCircleIcon className="w-5 h-5 text-green-500 mr-2" />
-                        Strengths
-                      </h3>
-                  <ul className="space-y-2">
-                    {scriptData.aiAnalysis?.strengths?.map((strength, index) => (
-                      <li key={index} className="flex items-start">
-                        <div className="w-5 h-5 bg-green-500/20 rounded-full flex items-center justify-center mt-0.5 mr-2 flex-shrink-0">
-                          <span className="text-green-500 text-xs">✓</span>
-                    </div>
-                        <span className="text-gray-300">{strength}</span>
-                          </li>
-                        ))}
-                      </ul>
-                  </div>
-                  
-                {/* Weaknesses */}
-                <div className="bg-black/30 border border-white/10 rounded-xl p-6">
-                  <h3 className="text-lg font-medium text-white mb-4 flex items-center">
-                    <XMarkIcon className="w-5 h-5 text-amber-500 mr-2" />
-                        Areas for Improvement
-                      </h3>
-                  <ul className="space-y-2">
-                    {scriptData.aiAnalysis?.weaknesses?.map((weakness, index) => (
-                      <li key={index} className="flex items-start">
-                        <div className="w-5 h-5 bg-amber-500/20 rounded-full flex items-center justify-center mt-0.5 mr-2 flex-shrink-0">
-                          <span className="text-amber-500 text-xs">!</span>
-                    </div>
-                        <span className="text-gray-300">{weakness}</span>
-                          </li>
-                        ))}
-                      </ul>
-                  </div>
-                </div>
-                
-              {/* Keywords & Tags */}
-              {scriptData.aiAnalysis?.keywords && scriptData.aiAnalysis?.keywords.length > 0 && (
-                <div className="bg-black/30 border border-white/10 rounded-xl p-6">
-                  <h3 className="text-lg font-medium text-white mb-4">Script Keywords</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {scriptData.aiAnalysis?.keywords?.map((keyword, index) => (
-                      <span 
-                        key={index}
-                        className="px-3 py-1 bg-[rgb(var(--accent-primary))]/10 border border-[rgb(var(--accent-primary))]/20 rounded-full text-[rgb(var(--accent-primary))] text-sm"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
-                    </div>
-                      </div>
-                    )}
-                  </div>
-            )}
-          </div>
-        );
+            </div>
+          )}
+        </div>
+      );
     }
       
     // Step 4: Review & Submit
@@ -1249,12 +1066,12 @@ const SubmitScript = () => {
         return (
           <div className="space-y-6">
           <h2 className="text-xl font-bold text-white">Review & Submit</h2>
-          <p className="text-gray-400 mb-6">Review your script details before submitting</p>
+          <p className="text-gray-400 mb-6">Review your audio details before submitting</p>
           
           <div className="space-y-8">
-            {/* Script Details Summary */}
+            {/* Audio Details Summary */}
             <div className="bg-black/30 border border-white/10 rounded-xl p-6">
-              <h3 className="text-lg font-medium text-white mb-4">Script Details</h3>
+              <h3 className="text-lg font-medium text-white mb-4">Audio Details</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                   <div>
@@ -1274,8 +1091,8 @@ const SubmitScript = () => {
                   <p className="text-white">{scriptData.projectTitle}</p>
                     </div>
                 <div className="md:col-span-2">
-                  <p className="text-gray-400 text-sm">Logline</p>
-                  <p className="text-white">{scriptData.logline}</p>
+                  <p className="text-gray-400 text-sm">Description</p>
+                  <p className="text-white">{scriptData.synopsis}</p>
                     </div>
               </div>
                   </div>
@@ -1443,21 +1260,21 @@ const SubmitScript = () => {
                 </button>
               ) : (
                 <button
-                    onClick={handleSubmitScript}
-                    disabled={isSubmitting}
-                    className={`flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] rounded-lg text-white font-medium ${
-                      isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90 transition-opacity'
-                    }`}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <ArrowPathIcon className="w-5 h-5 animate-spin" />
-                        Submitting...
+                  onClick={handleSubmitScript}
+                  disabled={isSubmitting}
+                  className={`flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] rounded-lg text-white font-medium ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90 transition-opacity'
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <ArrowPathIcon className="w-5 h-5 animate-spin" />
+                      Submitting...
                     </>
                   ) : (
                     <>
-                        <PaperAirplaneIcon className="w-5 h-5" />
-                        Submit Script
+                      <PaperAirplaneIcon className="w-5 h-5" />
+                      Submit Audio
                     </>
                   )}
                 </button>

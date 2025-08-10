@@ -21,6 +21,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { useUser } from '@/lib/hooks/useUser';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useAudioPlayer } from '@/context/audioPlayer';
 import { useMarketplace } from '@/context/audio';
 import ScrollVelocity from '@/components/ScrollVelocity';
 
@@ -227,6 +228,7 @@ const genreOptions = [
 ];
 
 export default function WriterDashboard() {
+  const { play } = useAudioPlayer();
   const [userData, setUserData] = useState<any>(null);
   const [userName, setUserName] = useState('');
   const [stats, setStats] = useState<StatItem[]>(emptyStats);
@@ -725,7 +727,7 @@ export default function WriterDashboard() {
               className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all shadow-lg w-full sm:w-auto"
             >
               <PlusIcon className="w-5 h-5" />
-              <span>Submit Script</span>
+              <span>Submit Audio</span>
             </Link>
           </motion.div>
         </div>
@@ -802,9 +804,12 @@ export default function WriterDashboard() {
                       <div className="text-gray-300 text-xs md:text-sm line-clamp-2 mb-4">{audio.summary}</div>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 mt-2">
-                      <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors w-full sm:w-auto justify-center">
+                      <button
+                        onClick={() => play({ title: audio.title, audioUrl: audio.downloadUrl, coverImage: audio.cover })}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors w-full sm:w-auto justify-center"
+                      >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-6.518-3.89A1 1 0 007 8.618v6.764a1 1 0 001.234.97l6.518-1.872A1 1 0 0016 13.382V10.618a1 1 0 00-1.248-.95z" /></svg>
-                        <span>{audio.duration}</span>
+                        <span>Play</span>
                       </button>
                       <a
                         href={audio.downloadUrl}

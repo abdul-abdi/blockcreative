@@ -50,7 +50,7 @@ export default function HeroSection() {
                 y: [0, -8, 0]
               }}
               transition={{
-                duration: 3,
+                duration: 0.5,
                 y: {
                   repeat: Infinity,
                   repeatType: "reverse",

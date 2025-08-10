@@ -8,6 +8,8 @@ import ContextProvider from '@/context';
 import connectToDatabase from '@/lib/mongodb';
 import ErrorBoundaryWrapper from '@/components/ErrorBoundaryWrapper';
 import { MarketplaceProvider } from '@/context/audio';
+import { AudioPlayerProvider } from '@/context/audioPlayer';
+import GlobalAudioBar from '@/components/GlobalAudioBar';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -46,7 +48,10 @@ export default async function RootLayout({
               <ClientInitializer />
               <BlockchainInitializer />
               <MarketplaceProvider>
-                {children}
+                <AudioPlayerProvider>
+                  {children}
+                  <GlobalAudioBar />
+                </AudioPlayerProvider>
               </MarketplaceProvider>
              
             </Suspense>
