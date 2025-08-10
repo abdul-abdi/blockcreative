@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -114,9 +114,7 @@ export default function SignIn() {
         console.log('AppKit modal opened successfully');
         
         // Step 2: Once AppKit connection is successful, check if wallet is connected
-        setTimeout(() => {
-          checkUserAfterConnection();
-        }, 2000);
+        // The useEffect will handle the redirect when isConnected/address update
       } catch (modalError) {
         console.error('AppKit modal error:', modalError);
         
@@ -265,6 +263,14 @@ export default function SignIn() {
       setError(parseSiweError(error));
     }
   };
+
+  useEffect(() => {
+    if (isLoading && isConnected && address) {
+      // Only check user if loading and wallet just connected
+      checkUserExists(address);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, address]);
 
   if (isLoading) {
     return (
