@@ -159,7 +159,7 @@ export default function Projects() {
             <p className="text-gray-400">Manage your ongoing projects and review submissions</p>
           </div>
           <Link
-            href="/producer/projects/new"
+            href="/audiomarket/producer/projects/new"
             className="flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold hover:from-emerald-600 hover:to-teal-600 transition-all hover:scale-105 shadow-lg"
           >
             <PlusIcon key="header-plus-icon" className="w-5 h-5" />
@@ -228,7 +228,7 @@ export default function Projects() {
                     : "You haven't created any projects yet."}
                 </p>
                 <Link
-                  href="/producer/projects/new"
+                  href="/audiomarket/producer/projects/new"
                   className="inline-flex items-center px-4 py-2 bg-[rgb(var(--accent-primary))] text-white rounded-lg hover:bg-[rgb(var(--accent-secondary))] transition-colors"
                 >
                   <PlusIcon key="create-project-icon" className="w-5 h-5 mr-2" />
@@ -246,7 +246,7 @@ export default function Projects() {
                       ? 'border-[rgb(var(--accent-primary))] bg-[rgb(var(--accent-primary))]/5'
                       : 'border-white/10 hover:border-white/20'
                   }`}
-                  onClick={() => router.push(`/producer/projects/${project.id}`)}
+                  onClick={() => router.push(`/audiomarket/producer/projects/${project.id}`)}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                     <div>
@@ -298,7 +298,7 @@ export default function Projects() {
                     <div key={`view-details-container-${project.id}`}>
                       <Link
                         key={`view-details-link-${project.id}`}
-                        href={`/producer/projects/${project.id}`}
+                        href={`/audiomarket/producer/projects/${project.id}`}
                         className="text-[rgb(var(--accent-primary))] hover:underline text-sm flex items-center"
                         onClick={(e) => e.stopPropagation()}
                       >

@@ -14,10 +14,8 @@ import {
   PlusIcon,
   SparklesIcon,
   ArrowPathIcon,
-  ArrowSmallUpIcon,
-  ArrowSmallDownIcon,
   CheckCircleIcon,
-  ClockIcon,
+  ClockIcon,  
   StarIcon,
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
@@ -54,6 +52,12 @@ interface Submission {
   };
   content?: string;
   project_id?: string | number;
+  market?: string; // Add market field
+  readByProducers?: {
+    producer_id: string;
+    read_at: Date;
+    read_hash: string;
+  }[];
 }
 
 // Extended submission interface for API responses
@@ -513,10 +517,41 @@ export default function ProducerDashboard() {
   const { user, authenticated, isLoading: isUserLoading } = useUser();
   const router = useRouter();
 
+  // Helper function to check if submission has been read by current producer
+  const hasBeenReadByCurrentProducer = (submission: ApiSubmission) => {
+    if (!user?.id || !submission.readByProducers) return false;
+    
+    return submission.readByProducers.some(
+      (entry: { producer_id: string }) => entry.producer_id === user.id
+    );
+  };
+
   // Add a function to manually refresh data
   const handleRefreshData = () => {
     setIsLoading(true);
     setDataRefreshCounter(prev => prev + 1);
+  };
+
+  // Add a function to mark a submission as read
+  const markAsRead = async (submissionId: string) => {
+    try {
+      const response = await fetch(`/api/submissions/${submissionId}/read`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-wallet-address': user?.address || ''
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to mark as read');
+      }
+      
+      // Refresh the data to update the UI
+      handleRefreshData();
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
   };
 
   // Add a function to handle project funding
@@ -793,6 +828,9 @@ export default function ProducerDashboard() {
           const projectsError = await projectsResponse.text();
           console.error('Error fetching projects:', projectsError);
           setError('Failed to fetch projects. Please try again later.');
+          
+          // Still set the projects even if submissions fail
+          setActiveProjects([]);
           setIsLoading(false);
           return;
         }
@@ -949,7 +987,8 @@ export default function ProducerDashboard() {
             status: submission.status || 'pending',
             date: formattedDate || 'Unknown date',
             content: submission.content,
-            project_id: submission.project_id
+            project_id: submission.project_id,
+            market: submission.market // Add market field
           };
         });
         
@@ -1139,7 +1178,7 @@ export default function ProducerDashboard() {
               if (formattedWriters.length > 0) {
                 console.log('Setting top writers:', formattedWriters);
                 setTopWriters(formattedWriters);
-      } else {
+              } else {
                 console.log('No writers with names found, showing empty state');
                 // Set empty array for top writers if all are anonymous
                 setTopWriters([]);
@@ -1151,8 +1190,8 @@ export default function ProducerDashboard() {
           } else {
             // Set sample writers data if API call failed
             setTopWriters([]);
-      }
-    } catch (error) {
+          }
+        } catch (error) {
           console.error('Error fetching writers:', error);
           setTopWriters([]);
         }
@@ -1451,81 +1490,57 @@ export default function ProducerDashboard() {
               <div className="space-y-5">
                 {topWriters.length > 0 ? (
                   topWriters.map((writer) => (
-                    <div key={writer.id} className="bg-white/5 rounded-xl hover:bg-white/10 transition-all border border-white/10 p-4">
-                      <div className="flex items-start gap-4">
-                        <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/10 flex-shrink-0">
-                        {writer.avatar ? (
-                          <Image
-                            src={writer.avatar}
-                            alt={writer.name}
-                            fill
-                              className="object-cover"
-                          />
-                        ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white text-xl font-bold">
-                            {writer.name.charAt(0)}
-                          </div>
-                        )}
+                    <div key={writer.id} className="bg-white/5 rounded-lg hover:bg-white/10 transition-all border border-white/10 p-3">
+                      <div className="flex items-start gap-3">
+                        <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/10 flex-shrink-0">
+                          {writer.avatar ? (
+                            <Image
+                              src={writer.avatar}
+                              alt={writer.name}
+                              fill
+                                className="object-cover"
+                            />
+                          ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-white text-sm font-bold">
+                              {writer.name.charAt(0)}
+                            </div>
+                          )}
                           {writer.rating >= 4.7 && (
                             <div 
-                              className="absolute -top-1 -right-1 bg-amber-500 rounded-full p-1" 
+                              className="absolute -top-0.5 -right-0.5 bg-amber-500 rounded-full p-0.5" 
                               title={`Top rated writer: ${writer.rating}/5`}
                             >
-                            <SparklesIcon className="w-3 h-3 text-white" />
+                            <SparklesIcon className="w-2.5 h-2.5 text-white" />
                           </div>
                         )}
-                      </div>
-                      <div className="flex-1">
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start mb-1">
-                            <div>
-                              <h3 className="text-lg font-semibold text-white hover:text-[rgb(var(--accent-primary))] transition-colors">
-                          {writer.name}
-                        </h3>
-                              <div className="flex items-center text-sm text-gray-400 gap-2">
-                                <span>{writer.genre || 'Various'} Specialist</span>
-                                {writer.location && (
-                                  <>
-                                    <span className="text-gray-600">•</span>
-                                    <span>{writer.location}</span>
-                                  </>
-                                )}
-                      </div>
-                            </div>
-                            <div className="flex items-center gap-1 text-yellow-400">
-                              <StarIcon className="w-4 h-4" />
-                              <span className="font-medium">{writer.rating}</span>
-                            </div>
-                          </div>
-                          
-                          {writer.bio && (
-                            <p className="text-xs text-gray-400 mt-1 mb-2 line-clamp-2">{writer.bio}</p>
-                          )}
-                          
-                          <div className="grid grid-cols-3 gap-2 mt-3">
-                            <div className="bg-black/20 rounded-lg p-2 text-center">
-                              <p className="text-xs text-gray-400">Submissions</p>
-                              <p className="text-white font-medium">{writer.submissions}</p>
-                            </div>
-                            <div className="bg-black/20 rounded-lg p-2 text-center">
-                              <p className="text-xs text-gray-400">Success</p>
-                              <p className="text-emerald-400 font-medium">{writer.acceptanceRate}</p>
-                            </div>
-                            <div className="bg-black/20 rounded-lg p-2 text-center">
-                              <p className="text-xs text-gray-400">Earnings</p>
-                              <p className="text-amber-400 font-medium">{writer.earnings}</p>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-semibold text-white truncate hover:text-[rgb(var(--accent-primary))] transition-colors">
+                                {writer.name}
+                              </h3>
+                              <div className="flex items-center text-xs text-gray-400 gap-1">
+                                <span className="truncate">{writer.genre || 'Various'}</span>
+                                <div className="flex items-center gap-1 text-yellow-400 ml-auto">
+                                  <StarIcon className="w-3 h-3" />
+                                  <span className="font-medium">{writer.rating}</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
                           
                           {writer.genres && writer.genres.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-3">
-                              {writer.genres.slice(0, 3).map((genre, index) => (
-                                <span key={index} className="px-2 py-0.5 text-xs rounded-full bg-black/20 text-gray-300">
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {writer.genres.slice(0, 2).map((genre, index) => (
+                                <span key={index} className="px-1.5 py-0.5 text-xs rounded bg-black/20 text-gray-300 truncate">
                                   {genre}
                                 </span>
                               ))}
-                              {writer.genres.length > 3 && (
-                                <span className="px-2 py-0.5 text-xs rounded-full bg-black/20 text-gray-300">
-                                  +{writer.genres.length - 3} more
+                              {writer.genres.length > 2 && (
+                                <span className="px-1.5 py-0.5 text-xs rounded bg-black/20 text-gray-300">
+                                  +{writer.genres.length - 2}
                                 </span>
                               )}
                             </div>
@@ -1535,17 +1550,17 @@ export default function ProducerDashboard() {
                     </div>
                   ))
                 ) : (
-                  <div className="text-center py-8 border border-dashed border-white/10 rounded-xl bg-black/20">
-                    <UserGroupIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-white mb-2">No Top Writers Yet</h3>
-                    <p className="text-gray-400 mb-6 max-w-md mx-auto">
-                      As your projects receive submissions, you'll see your top writers appear here.
+                  <div className="text-center py-6 border border-dashed border-white/10 rounded-lg bg-black/20">
+                    <UserGroupIcon className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                    <h3 className="text-lg font-semibold text-white mb-2">No Top Writers Yet</h3>
+                    <p className="text-gray-400 mb-4 text-sm max-w-sm mx-auto">
+                      Top writers will appear here as your projects receive submissions.
                     </p>
                     <Link
                       href="/producer/writers"
-                      className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-medium hover:opacity-90 transition-opacity shadow-lg"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-medium hover:opacity-90 transition-opacity text-sm"
                     >
-                      <UserGroupIcon className="w-5 h-5" />
+                      <UserGroupIcon className="w-4 h-4" />
                       Browse Writers
                     </Link>
                   </div>
@@ -1581,13 +1596,16 @@ export default function ProducerDashboard() {
                         <button
                           key={submission.id}
                           onClick={() => setSelectedSubmission(submission)}
-                          className={`px-3 sm:px-4 py-2 rounded-lg transition-all text-sm sm:text-base ${
+                          className={`px-3 sm:px-4 py-2 rounded-lg transition-all text-sm sm:text-base flex items-center gap-2 ${
                             selectedSubmission?.id === submission.id
                               ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
                               : 'bg-white/5 text-gray-400 hover:bg-white/10'
                           }`}
                         >
-                          #{index + 1} ({submission.score})
+                          <span>#{index + 1} ({submission.score})</span>
+                          {hasBeenReadByCurrentProducer(submission) && (
+                            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">Read</span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -1619,6 +1637,12 @@ export default function ProducerDashboard() {
                             <p className="text-xs sm:text-sm text-gray-400">Writer</p>
                             <p className="text-sm sm:text-base text-white">{selectedSubmission?.writer}</p>
                           </div>
+                          {selectedSubmission?.market && (
+                            <div>
+                              <p className="text-xs sm:text-sm text-gray-400">Market/Platform</p>
+                              <p className="text-sm sm:text-base text-white">{selectedSubmission?.market}</p>
+                            </div>
+                          )}
                           <div>
                             <p className="text-xs sm:text-sm text-gray-400">Overall Score</p>
                             <p className="text-xl sm:text-2xl font-bold text-[rgb(var(--accent-primary))]">
@@ -1725,21 +1749,31 @@ export default function ProducerDashboard() {
           <div className="p-6 bg-black border border-white/10 rounded-lg">
             <div className="flex justify-between items-start mb-6">
               <h2 className="text-xl font-semibold text-white">{selectedSubmission.title}</h2>
-              {selectedSubmission.status === 'pending' && (
-                <button
-                  onClick={() => handleAcceptSubmission(selectedSubmission.id)}
-                  className="px-4 py-2 bg-[rgb(var(--accent-primary))] rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity flex items-center gap-2"
-                >
-                  <CheckCircleIcon className="w-5 h-5" />
-                  Accept Submission
-                </button>
-              )}
-              {selectedSubmission.status === 'accepted' && (
-                <div className="px-4 py-2 bg-green-900/30 text-green-400 rounded-lg text-sm font-medium flex items-center gap-2">
-                  <CheckCircleIcon className="w-5 h-5" />
-                  Accepted
-                </div>
-              )}
+              <div className="flex gap-2">
+                {!hasBeenReadByCurrentProducer(selectedSubmission) && (
+                  <button
+                    onClick={() => markAsRead(selectedSubmission.id.toString())}
+                    className="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity flex items-center gap-2"
+                  >
+                    Mark as Read
+                  </button>
+                )}
+                {selectedSubmission.status === 'pending' && (
+                  <button
+                    onClick={() => handleAcceptSubmission(selectedSubmission.id)}
+                    className="px-4 py-2 bg-[rgb(var(--accent-primary))] rounded-lg text-sm font-medium text-white hover:opacity-90 transition-opacity flex items-center gap-2"
+                  >
+                    <CheckCircleIcon className="w-5 h-5" />
+                    Accept Submission
+                  </button>
+                )}
+                {selectedSubmission.status === 'accepted' && (
+                  <div className="px-4 py-2 bg-green-900/30 text-green-400 rounded-lg text-sm font-medium flex items-center gap-2">
+                    <CheckCircleIcon className="w-5 h-5" />
+                    Accepted
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Rest of the submission details */}

@@ -180,7 +180,7 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
     return(
       <div >
         <h2>KYC Verification</h2>
-        <p>You must complete KYC Verification before uploading songs <br/> Visit here to complete verification <a href="/(audio)/audiomarket/writer/settings" className='underline text-yellow-300'>Settings</a>
+        <p>You must complete KYC Verification before uploading songs <br/> Visit here to complete verification <a href="/audiomarket/writer/settings" className='underline text-yellow-300'>Settings</a>
         </p>
       </div>
     )
@@ -292,7 +292,7 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
           </div>
           
           <div className="mt-8 flex justify-center">
-          <Link href="/writer/dashboard" className="px-6 py-3 bg-[rgb(var(--accent-primary))] hover:bg-[rgb(var(--accent-primary))]/90 text-white rounded-lg flex items-center">
+          <Link href="/audiomarket/writer/dashboard" className="px-6 py-3 bg-[rgb(var(--accent-primary))] hover:bg-[rgb(var(--accent-primary))]/90 text-white rounded-lg flex items-center">
             <ArrowUturnLeftIcon className="w-5 h-5 mr-2" />
             Return to Dashboard
           </Link>
@@ -1341,7 +1341,7 @@ const SubmitScript = () => {
       <div className="p-6 md:p-8 max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Link href="/writer/dashboard" className="text-gray-400 hover:text-white flex items-center gap-2 mb-4">
+          <Link href="/audiomarket/writer/dashboard" className="text-gray-400 hover:text-white flex items-center gap-2 mb-4">
             <ArrowLongLeftIcon className="w-5 h-5" />
             <span>Back to Dashboard</span>
                           </Link>
