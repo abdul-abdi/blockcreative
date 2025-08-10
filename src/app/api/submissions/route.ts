@@ -4,6 +4,8 @@ import { Submission, Script, Project, User } from '@/models';
 import { v4 as uuidv4 } from 'uuid';
 import { analyzeScript } from '@/lib/ai';
 import mongoose from 'mongoose';
+import { uploadFileToIPFS } from '@/lib/ipfs';
+import { mintScriptNFT } from '@/lib/blockchain';
 
 // GET /api/submissions - Get all submissions or filtered list
 export async function GET(request: NextRequest) {
@@ -251,7 +253,7 @@ async function getSubmissionsForUser(request: NextRequest, user: any) {
 
     // Get filtered submissions with pagination and sorting
     const submissions = await Submission.find(filter)
-      .select('-__v')
+      .select('-__v +readByProducers')
       .skip(skip)
       .limit(limit)
       .sort({ created_at: -1 });
@@ -344,16 +346,25 @@ export async function POST(request: NextRequest) {
       synopsis, 
       genre, 
       target_audience, 
+      market, // Add market field
       runtime,
       comparables,
       key_characters,
-      analysis 
+      analysis,
+      file_data,
+      file_name
     } = body;
 
     // Validate required fields - enforce project_id as required
     if (!title || !content || !project_id) {
       return NextResponse.json({ 
         error: 'Title, content, and project ID are required' 
+      }, { status: 400 });
+    }
+
+    if (!file_data || !file_name) {
+      return NextResponse.json({
+        error: 'File data and file name are required for submission'
       }, { status: 400 });
     }
 
@@ -400,6 +411,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Upload file to IPFS
+    let ipfsHash;
+    try {
+      // Decode base64 file data to buffer
+      const fileBuffer = Buffer.from(file_data, 'base64');
+      ipfsHash = await uploadFileToIPFS(fileBuffer, file_name);
+      console.log('File uploaded to IPFS with hash:', ipfsHash);
+    } catch (error) {
+      console.error('Failed to upload file to IPFS:', error);
+      return NextResponse.json({
+        error: 'Failed to upload file to IPFS',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }, { status: 500 });
+    }
+
     // Create submission
     try {
       const submission = new Submission({
@@ -414,19 +440,44 @@ export async function POST(request: NextRequest) {
         synopsis: synopsis || '',
         genre: genre || '',
         target_audience: target_audience || '',
+        market: market || '', // Add market field
         runtime: runtime || '',
         comparables: comparables || '',
         key_characters: key_characters || '',
+        ipfs_hash: ipfsHash,
         created_at: new Date(),
         updated_at: new Date()
       });
 
       await submission.save();
 
+      // Mint NFT on blockchain
+      const mintResult = await mintScriptNFT(
+        normalizedWalletAddress,
+        ipfsHash,
+        submission.id
+      );
+
+      if (!mintResult.success) {
+        console.error('Failed to mint NFT:', mintResult.error);
+        return NextResponse.json({
+          error: 'Failed to mint NFT',
+          message: mintResult.error
+        }, { status: 500 });
+      }
+
+      // Update submission with NFT minting info
+      submission.nft_minted = true;
+      submission.nft_token_id = mintResult.tokenId;
+      submission.updated_at = new Date();
+      await submission.save();
+
       return NextResponse.json({
         message: 'Submission created successfully',
         submission_id: submission.id,
-        project_title: project.title
+        project_title: project.title,
+        nft_token_id: mintResult.tokenId,
+        transaction_hash: mintResult.transactionHash
       }, { status: 201 });
     } catch (error) {
       console.error('Error creating submission:', error);

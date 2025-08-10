@@ -566,7 +566,7 @@ export default function BrowseProjects() {
                       {/* Quick action button */}
                       <div className="mt-4 pt-4 border-t border-white/5">
                         <Link
-                          href={`/writer/submit?project=${project.id}`}
+                          href={`/audiomarket/writer/submit?project=${project.id}`}
                           className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500/80 to-indigo-500/80 text-white text-sm font-semibold hover:from-purple-500 hover:to-indigo-500 transition-all"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -796,7 +796,7 @@ export default function BrowseProjects() {
                   
                   <div className="space-y-4">
                     <Link
-                      href={`/writer/submit?project=${selectedProject.id}`}
+                      href={`/audiomarket/writer/submit?project=${selectedProject.id}`}
                       className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-semibold hover:opacity-90 transition-all hover:scale-105"
                     >
                       <DocumentTextIcon className="w-5 h-5" />
@@ -804,7 +804,7 @@ export default function BrowseProjects() {
                     </Link>
                     
                     <Link
-                      href={`/writer/projects/${selectedProject.id}`}
+                      href={`/audiomarket/writer/projects/${selectedProject.id}`}
                       className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white/5 rounded-lg text-white hover:bg-white/10 transition-colors"
                     >
                       View Full Details

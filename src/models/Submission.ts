@@ -16,6 +16,13 @@ export interface ISubmission extends Document {
   nft_minted?: boolean;
   nft_token_id?: string;
   nft_metadata?: any;
+  ipfs_hash?: string;
+  market?: string; // Add market field
+  readByProducers?: {
+    producer_id: string;
+    read_at: Date;
+    read_hash: string;
+  }[];
 }
 
 const SubmissionSchema: Schema = new Schema({
@@ -29,6 +36,12 @@ const SubmissionSchema: Schema = new Schema({
     enum: ['pending', 'approved', 'rejected'], 
     default: 'pending' 
   },
+  market: { type: String }, // Add market field to schema
+  readByProducers: [{
+    producer_id: { type: String, required: true, ref: 'User' },
+    read_at: { type: Date, default: Date.now },
+    read_hash: { type: String, required: true }
+  }],
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date, default: Date.now },
   feedback: { type: String },
@@ -37,7 +50,8 @@ const SubmissionSchema: Schema = new Schema({
   purchase_amount: { type: Number },
   nft_minted: { type: Boolean, default: false },
   nft_token_id: { type: String },
-  nft_metadata: { type: Schema.Types.Mixed }
+  nft_metadata: { type: Schema.Types.Mixed },
+  ipfs_hash: { type: String }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
 });
