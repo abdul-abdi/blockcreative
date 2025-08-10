@@ -5,9 +5,9 @@ import User from '@/models/User';
 import crypto from 'crypto';
 
 // POST /api/submissions/[id]/read - Mark a submission as read by a producer
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const submissionId = params.id;
+    const { id: submissionId } = await params; // Await the params Promise
     const walletAddress = request.headers.get('x-wallet-address');
     if (!walletAddress) {
       return NextResponse.json({ error: 'Unauthorized', message: 'Wallet address required' }, { status: 401 });
