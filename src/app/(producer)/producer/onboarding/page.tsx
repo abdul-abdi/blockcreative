@@ -331,7 +331,7 @@ export default function ProducerOnboarding() {
     setShowMarketplaceModal(false);
     setMarketplace(choice);
     if(choice === "audio"){
-      router.push('/audio/producer/dashboard');
+      router.push('/audiomarket/producer/dashboard');
     }else{
       router.push('/producer/dashboard');
     }

@@ -7,6 +7,8 @@ import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { appKitModal } from '@/context';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
+import MarketplaceChoiceModal from '@/components/MarketplaceChoiceModal';
+import { useMarketplace } from '@/context/audio';
 
 const navigation = [
   { name: 'Story', href: '#story' },
@@ -22,6 +24,8 @@ export default function Navbar() {
   const [activeSection, setActiveSection] = useState('');
   const { isConnected, address } = useAccount();
   const router = useRouter();
+  const [showMarketplaceModal, setShowMarketplaceModal] = useState(false);
+  const { setMarketplace } = useMarketplace();
   
   // Memoize the scroll handler
   const handleScroll = useCallback(() => {
@@ -59,12 +63,22 @@ export default function Navbar() {
     }
   };
 
-  // Function to go to dashboard based on user role
+  // Function to go to dashboard based on user choice and role
   const handleDashboardClick = () => {
-    // This is a placeholder - implement your logic to determine user role
-    // For now, we'll use localStorage, but in a real app, you'd likely use a backend check
+    // Open marketplace modal instead of direct navigation
+    setShowMarketplaceModal(true);
+  };
+
+  const handleMarketPlaceModal = (choice: 'script' | 'audio') => {
+    setShowMarketplaceModal(false);
+    setMarketplace(choice);
+
     const userRole = localStorage.getItem('userRole') || 'writer';
-    router.push(`/${userRole}/dashboard`);
+    if (choice === 'script') {
+      router.push(`/${userRole}/dashboard`);
+    } else {
+      router.push(`/audiomarket/${userRole}/dashboard`);
+    }
   };
 
   const scrollToSection = (href: string) => {
@@ -209,8 +223,8 @@ export default function Navbar() {
                     <>
                       <button
                         onClick={() => {
-                          handleDashboardClick();
                           setIsMobileMenuOpen(false);
+                          handleDashboardClick();
                         }}
                         className="w-full py-3 text-center bg-white/10 rounded-lg text-white font-medium"
                       >
@@ -245,6 +259,12 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <MarketplaceChoiceModal
+        open={showMarketplaceModal}
+        onClose={() => setShowMarketplaceModal(false)}
+        onSelect={handleMarketPlaceModal}
+      />
     </header>
   );
 }

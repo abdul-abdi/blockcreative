@@ -254,7 +254,7 @@ export default function WriterOnboarding() {
     if(choice === "script"){
       router.push("/writer/dashboard");
     }else{
-      router.push('/audio/writer/dashboard');
+      router.push('/audiomarket/writer/dashboard');
     };
   }
   // Handle previous step click

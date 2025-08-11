@@ -14,6 +14,20 @@ import {
   StarIcon,
 } from '@heroicons/react/24/outline';
 import DashboardLayout from '@/components/DashboardLayout';
+import { useAudioPlayer } from '@/context/audioPlayer';
+
+// Audio upload type
+interface AudioItem {
+  _id: string;
+  title: string;
+  description?: string;
+  audioUrl: string;
+  coverImage?: string;
+  creatorAddress?: string;
+  durationSeconds?: number;
+  tags?: string[];
+  createdAt?: string;
+}
 
 // Define typings for our data
 interface Project {
@@ -49,10 +63,17 @@ interface Project {
 }
 
 export default function BrowseProjects() {
+  const { play } = useAudioPlayer();
+  // Build queue and play helpers
+  const { setQueueAndPlay } = useAudioPlayer();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Audio uploads state
+  const [audioItems, setAudioItems] = useState<AudioItem[]>([]);
+  const [audioLoading, setAudioLoading] = useState<boolean>(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
     searchQuery: '',
     genre: 'All',
@@ -208,6 +229,28 @@ export default function BrowseProjects() {
     
     fetchProjects();
   }, []);
+
+  // Fetch audio uploads for audiomarket Explore page
+  useEffect(() => {
+    const fetchAudio = async () => {
+      try {
+        setAudioLoading(true);
+        setAudioError(null);
+        const res = await fetch('/api/audio/submissions?limit=100', { cache: 'no-store' });
+        if(!res.ok){
+          const text = await res.text();
+          throw new Error(text || 'Failed to fetch audio uploads');
+        }
+        const data = await res.json();
+        setAudioItems(Array.isArray(data.items) ? data.items : []);
+      } catch (e: any) {
+        setAudioError(e?.message || 'Failed to load audio uploads');
+      } finally {
+        setAudioLoading(false);
+      }
+    };
+    fetchAudio();
+  }, []);
   
   // Filter projects when filters change
   useEffect(() => {
@@ -259,6 +302,82 @@ export default function BrowseProjects() {
   return (
     <DashboardLayout userType="writer">
       <div className="p-6 md:p-8 space-y-8">
+        {/* Audio Uploads Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-white">Explore Audio Uploads</h2>
+            <span className="text-sm text-gray-400">{audioItems.length} uploads</span>
+          </div>
+          {audioLoading ? (
+            <div className="flex items-center justify-center h-40">
+              <div className="w-10 h-10 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
+            </div>
+          ) : audioError ? (
+            <div className="p-4 rounded-lg bg-red-500/10 text-red-300 border border-red-500/20">
+              {audioError}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {audioItems.map((item, idx) => (
+                <div key={item._id} className="card overflow-hidden">
+                  {item.coverImage ? (
+                    <div className="h-36 bg-cover bg-center" style={{ backgroundImage: `url(${item.coverImage})` }} />
+                  ) : (
+                    <div className="h-36 bg-gradient-to-r from-[rgb(var(--accent-primary))]/20 to-[rgb(var(--accent-secondary))]/20" />
+                  )}
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{item.title}</h3>
+                        {item.creatorAddress && (
+                          <p className="text-xs text-gray-400">By {item.creatorAddress}</p>
+                        )}
+                      </div>
+                      {item.durationSeconds ? (
+                        <span className="text-xs px-2 py-1 rounded bg-white/5 text-gray-300">
+                          {Math.floor(item.durationSeconds/60)}:{String(item.durationSeconds%60).padStart(2,'0')}
+                        </span>
+                      ) : null}
+                    </div>
+                    {item.description && (
+                      <p className="text-sm text-gray-300 line-clamp-2">{item.description}</p>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setQueueAndPlay(
+                          audioItems.map(a => ({ id: a._id, title: a.title, audioUrl: a.audioUrl, coverImage: a.coverImage, creatorAddress: a.creatorAddress, durationSeconds: a.durationSeconds })),
+                          idx
+                        )}
+                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white text-sm font-semibold hover:opacity-90"
+                      >
+                        Play
+                      </button>
+                      {item.durationSeconds ? (
+                        <span className="text-xs text-gray-400">{Math.floor((item.durationSeconds||0)/60)}:{String((item.durationSeconds||0)%60).padStart(2,'0')}</span>
+                      ) : null}
+                    </div>
+                    {item.tags && item.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {item.tags.slice(0, 4).map((t, idx) => (
+                          <span key={idx} className="text-xs px-2 py-1 rounded-full bg-white/5 text-gray-300">{t}</span>
+                        ))}
+                        {item.tags.length > 4 && (
+                          <span className="text-xs px-2 py-1 rounded-full bg-white/5 text-gray-300">+{item.tags.length - 4} more</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {audioItems.length === 0 && (
+                <div className="col-span-full p-6 text-center border border-dashed border-white/10 rounded-lg bg-black/20 text-gray-400">
+                  No audio uploads found.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Enhanced Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>

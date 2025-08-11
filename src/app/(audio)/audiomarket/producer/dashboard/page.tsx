@@ -1243,17 +1243,16 @@ export default function ProducerDashboard() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="w-full sm:w-auto flex items-center gap-4"
+            className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4"
           >
-            <button 
-              onClick={handleRefresh}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
-              title="Refresh dashboard data"
-              disabled={isLoading}
+            <Link
+              href="/producer/dashboard"
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold hover:opacity-90 transition-all w-full sm:w-auto"
+              title="Switch to Script Marketplace"
             >
-              <ArrowPathIcon className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="sr-only md:not-sr-only">Refresh</span>
-            </button>
+              <SparklesIcon className="w-5 h-5" />
+              <span>Switch to Script Marketplace</span>
+            </Link>
             <Link
               href="/audiomarket/producer/projects/new"
               className="flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all shadow-lg"

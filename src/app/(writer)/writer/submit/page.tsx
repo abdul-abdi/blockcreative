@@ -651,7 +651,7 @@ const SubmitScript = () => {
     setIsSubmitting(true);
     setError("");
 
-    const endpoint = marketplace === 'audio' ? '/api/audio/submissions' : '/api/submission'
+    const endpoint = marketplace === 'audio' ? '/api/audiomarket/submissions' : '/api/submission'
 
     // Validate required fields
     if (!scriptData.title || !scriptData.genre || !scriptData.content || !scriptData.logline 
