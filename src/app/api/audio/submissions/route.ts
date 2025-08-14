@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+export const runtime = 'nodejs';
 import connectToDatabase from '@/lib/mongodb';
 import AudioSubmission from "@/models/AudioSubmission";
+import User from '@/models/User';
 
 export async function POST(req: NextRequest){
   try {
@@ -28,6 +30,15 @@ export async function POST(req: NextRequest){
       // optional durationSeconds can be provided by client
       const durationStr = form.get('durationSeconds');
       if (durationStr) payload.durationSeconds = Number(durationStr);
+
+      // Optional cover image upload
+      const cover = form.get('coverImage') as File | null;
+      if (cover) {
+        const coverBuffer = Buffer.from(await cover.arrayBuffer());
+        const base64 = coverBuffer.toString('base64');
+        const mime = cover.type || 'image/png';
+        payload.coverImage = `data:${mime};base64,${base64}`;
+      }
     } else {
       // Fallback to JSON (e.g., if using external storage and providing audioUrl)
       const data = await req.json();
@@ -60,7 +71,7 @@ export async function POST(req: NextRequest){
 }
 
 export async function GET(req: NextRequest){
-  try{
+  try {
     await connectToDatabase();
     const url = new URL(req.url);
     const creator = url.searchParams.get('creator');
@@ -69,10 +80,28 @@ export async function GET(req: NextRequest){
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 100);
     const skip = Math.max(parseInt(url.searchParams.get('skip') || '0', 10), 0);
 
-    // If requesting a specific item for streaming, return it with proper headers
+    // If requesting a specific item, either stream audio or return metadata based on `meta` flag
     if (id) {
       const doc: any = await AudioSubmission.findById(id).lean();
       if (!doc) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+
+      const wantMeta = ['1', 'true', 'yes'].includes((url.searchParams.get('meta') || '').toLowerCase());
+      if (wantMeta) {
+        // Return JSON metadata (exclude large binary data)
+        const { audioData, ...rest } = doc as any;
+
+        // Attach creatorName if possible
+        let creatorName: string | undefined;
+        if (rest.creatorAddress) {
+          try {
+            const user = (await User.findOne({ address: String(rest.creatorAddress).toLowerCase() }).select('profile_data name address').lean()) as any;
+            const pd = (user && (user.profile_data || (user as any).profile_data)) as any;
+            if (pd && typeof pd.name === 'string' && pd.name.trim()) creatorName = pd.name.trim();
+          } catch {}
+        }
+        return NextResponse.json({ success: true, item: { ...rest, creatorName } });
+      }
+
       if ((doc as any).audioUrl) {
         // Redirect to external URL
         return NextResponse.redirect((doc as any).audioUrl);
@@ -110,7 +139,30 @@ export async function GET(req: NextRequest){
       AudioSubmission.countDocuments(filter),
     ]);
 
-    return NextResponse.json({ success: true, total, items });
+    // Attach creatorName map
+    const addresses = Array.from(new Set((items || [])
+      .map((it: any) => it?.creatorAddress)
+      .filter(Boolean)
+      .map((addr: any) => String(addr).toLowerCase())));
+
+    let addressToName: Record<string, string> = {};
+    if (addresses.length > 0) {
+      try {
+        const users = await User.find({ address: { $in: addresses } }).select('address profile_data.name').lean();
+        for (const u of users as any[]) {
+          const addr = String((u as any).address || '').toLowerCase();
+          const name = (u as any)?.profile_data?.name;
+          if (addr && name) addressToName[addr] = name;
+        }
+      } catch {}
+    }
+
+    const enrichedItems = (items as any[]).map((it: any) => ({
+      ...it,
+      creatorName: it?.creatorAddress ? addressToName[String(it.creatorAddress).toLowerCase()] : undefined,
+    }));
+
+    return NextResponse.json({ success: true, total, items: enrichedItems });
   }catch(error){
     let errorMessage = 'An unknown error occurred';
     if(error instanceof Error){

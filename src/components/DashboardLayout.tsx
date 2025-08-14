@@ -57,7 +57,7 @@ const audioWriterNavItems = [
   { name: 'Dashboard', href: '/audiomarket/writer/dashboard', icon: HomeIcon },
   { name: 'Premium', href: '/audiomarket/writer/premium', icon: StarIcon },
   { name: 'Uploads', href: '/audiomarket/writer/uploads', icon: ArrowUpTrayIcon },
-  { name: 'Explore', href: '/audiomarket/writer/projects', icon: FolderIcon },
+  { name: 'Audio Marketplace', href: '/audiomarket/writer/projects', icon: FolderIcon },
   { name: 'Settings', href: '/audiomarket/writer/settings', icon: Cog6ToothIcon },
 ];
 
