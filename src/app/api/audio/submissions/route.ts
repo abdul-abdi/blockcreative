@@ -28,6 +28,15 @@ export async function POST(req: NextRequest){
       // optional durationSeconds can be provided by client
       const durationStr = form.get('durationSeconds');
       if (durationStr) payload.durationSeconds = Number(durationStr);
+
+      // Optional cover image upload
+      const cover = form.get('coverImage') as File | null;
+      if (cover) {
+        const coverBuffer = Buffer.from(await cover.arrayBuffer());
+        const base64 = coverBuffer.toString('base64');
+        const mime = cover.type || 'image/png';
+        payload.coverImage = `data:${mime};base64,${base64}`;
+      }
     } else {
       // Fallback to JSON (e.g., if using external storage and providing audioUrl)
       const data = await req.json();
@@ -69,10 +78,18 @@ export async function GET(req: NextRequest){
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 100);
     const skip = Math.max(parseInt(url.searchParams.get('skip') || '0', 10), 0);
 
-    // If requesting a specific item for streaming, return it with proper headers
+    // If requesting a specific item, either stream audio or return metadata based on `meta` flag
     if (id) {
       const doc: any = await AudioSubmission.findById(id).lean();
       if (!doc) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+
+      const wantMeta = ['1', 'true', 'yes'].includes((url.searchParams.get('meta') || '').toLowerCase());
+      if (wantMeta) {
+        // Return JSON metadata (exclude large binary data)
+        const { audioData, ...rest } = doc as any;
+        return NextResponse.json({ success: true, item: rest });
+      }
+
       if ((doc as any).audioUrl) {
         // Redirect to external URL
         return NextResponse.redirect((doc as any).audioUrl);
