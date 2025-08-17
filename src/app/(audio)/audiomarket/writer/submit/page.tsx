@@ -134,6 +134,7 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   const {user,isLoading}  = useUser();
   const [kycStatus, setKycStatus] = useState<'not_submitted' | 'pending' | 'verified' | 'rejected'>('not_submitted');
+  const [coverImage, setCoverImage] = useState<string | null>(null);
   useEffect(() => {
     if(user && user.kycStatus){
       setKycStatus(user.kycStatus)
@@ -171,6 +172,18 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
+  }, [submissionId]);
+
+  // Fetch metadata for cover image
+  useEffect(() => {
+    const loadMeta = async () => {
+      try {
+        const r = await fetch(`/api/audio/submissions?id=${submissionId}&meta=1`);
+        const j = await r.json();
+        if (j?.item?.coverImage) setCoverImage(j.item.coverImage);
+      } catch {}
+    };
+    if (submissionId) loadMeta();
   }, [submissionId]);
 
   if(isLoading) {
@@ -212,6 +225,17 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
           <p className="text-white font-mono">{submissionId}</p>
               </div>
         
+        {/* Cover Image Preview */}
+        {coverImage && (
+          <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center gap-4">
+            <img src={coverImage} alt="cover" className="w-20 h-20 rounded object-cover" />
+            <div>
+              <p className="text-sm text-gray-400 mb-1">Album Cover</p>
+              <p className="text-white text-sm">Uploaded successfully</p>
+            </div>
+          </div>
+        )}
+        
         {/* Play uploaded audio */}
         <div className="bg-white/5 border border-white/10 rounded-lg p-4 flex items-center justify-between">
           <div>
@@ -219,7 +243,7 @@ const SubmissionConfirmation = ({ submissionId, projectTitle }: { submissionId: 
             <p className="text-white text-sm break-all">{audioUrl}</p>
           </div>
           <button
-            onClick={() => play({ title: projectTitle ? `${projectTitle} - Audio` : 'Uploaded Audio', audioUrl })}
+            onClick={() => play({ title: projectTitle ? `${projectTitle} - Audio` : 'Uploaded Audio', audioUrl, coverImage: coverImage || undefined })}
             className="px-4 py-2 bg-[rgb(var(--accent-primary))] hover:bg-[rgb(var(--accent-primary))]/90 text-white rounded-lg"
           >
             Play Uploaded Audio
@@ -323,6 +347,8 @@ const SubmitScript = () => {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
   const [durationSeconds, setDurationSeconds] = useState<number | undefined>(undefined);
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
   
   // Connect wallet function
   const connectWallet = async () => {
@@ -692,6 +718,9 @@ const SubmitScript = () => {
         form.append('durationSeconds', String(durationSeconds));
       }
       form.append('audio', audioFile);
+      if (coverImageFile) {
+        form.append('coverImage', coverImageFile);
+      }
 
       const response = await fetch('/api/audio/submissions', {
         method: 'POST',
@@ -916,6 +945,33 @@ const SubmitScript = () => {
               />
               {audioPreviewUrl && (
                 <audio src={audioPreviewUrl} controls className="mt-3 w-full" />
+              )}
+            </div>
+
+            {/* Cover image input */}
+            <div>
+              <label htmlFor="coverImage" className="block text-white font-medium mb-2">Album Cover (optional)</label>
+              <input
+                id="coverImage"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null;
+                  setCoverImageFile(f);
+                  if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+                  if (f) {
+                    const url = URL.createObjectURL(f);
+                    setCoverPreviewUrl(url);
+                  } else {
+                    setCoverPreviewUrl(null);
+                  }
+                }}
+                className="w-full text-white"
+              />
+              {coverPreviewUrl && (
+                <div className="mt-3">
+                  <img src={coverPreviewUrl} alt="Cover preview" className="w-40 h-40 object-cover rounded" />
+                </div>
               )}
             </div>
             

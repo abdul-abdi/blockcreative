@@ -193,33 +193,19 @@ async function registerWriterUser(walletAddress: string) {
   }
 }
 
-// --- MOCK AUDIO DATA (for audiomarket) ---
-const mockAudioItems = [
-  {
-    id: '1',
-    title: 'The Other Side Of HR',
-    description: 'HR Realities in a Struggling Economy',
-    creator: 'Precious & IbIjoke',
-    createdAt: '1 day ago',
-    cover: '/image1.jpg', // Use a public asset or placeholder
-    duration: '41 mins',
-    downloadUrl: '#',
-    summary: 'Inflation is rising, salaries are not, and HR and Managers are stuck in the middle. Sound fami...'
-  },
-  {
-    id: '2',
-    title: 'The Birth of the First Twins',
-    description: 'A story of the first twins',
-    creator: 'jamit',
-    createdAt: '2 days ago',
-    cover: '/public/globe.svg',
-    duration: '32 mins',
-    downloadUrl: '#',
-    summary: 'A fascinating tale about the first twins in history.'
-  },
-  // Add more mock items as needed
-];
-// --- END MOCK AUDIO DATA ---
+// Audio feed state
+type AudioFeedItem = {
+  _id: string;
+  title: string;
+  description?: string;
+  coverImage?: string;
+  creatorAddress?: string;
+  creatorName?: string;
+  durationSeconds?: number;
+  createdAt?: string;
+  audioUrl?: string;
+};
+// --- END TYPES ---
 
 // Add genreOptions array for the genre scroller
 const genreOptions = [
@@ -229,6 +215,9 @@ const genreOptions = [
 
 export default function WriterDashboard() {
   const { play } = useAudioPlayer();
+  const [audioFeed, setAudioFeed] = useState<AudioFeedItem[]>([]);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const [userData, setUserData] = useState<any>(null);
   const [userName, setUserName] = useState('');
   const [stats, setStats] = useState<StatItem[]>(emptyStats);
@@ -247,6 +236,40 @@ export default function WriterDashboard() {
   useEffect(() => {
     setMarketplace('audio');
   }, [setMarketplace]);
+
+  // Fetch latest audio uploads for the dashboard feed
+  useEffect(() => {
+    const fetchAudio = async () => {
+      try {
+        setAudioLoading(true);
+        setAudioError(null);
+        const res = await fetch('/api/audio/submissions?limit=9', { cache: 'no-store' });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || 'Failed to fetch audio uploads');
+        }
+        const data = await res.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        const mapped: AudioFeedItem[] = items.map((it: any) => ({
+          _id: it._id,
+          title: it.title,
+          description: it.description,
+          coverImage: it.coverImage,
+          creatorAddress: it.creatorAddress,
+          creatorName: it.creatorName,
+          durationSeconds: it.durationSeconds,
+          createdAt: it.createdAt,
+          audioUrl: it.audioUrl || `/api/audio/submissions?id=${it._id}`,
+        }));
+        setAudioFeed(mapped);
+      } catch (e: any) {
+        setAudioError(e?.message || 'Failed to load audio uploads');
+      } finally {
+        setAudioLoading(false);
+      }
+    };
+    fetchAudio();
+  }, []);
 
   // Helper function to render the correct icon based on type
   const renderIcon = (iconType: IconType) => {
@@ -778,15 +801,23 @@ export default function WriterDashboard() {
           >
             <h2 className="text-lg md:text-xl font-bold text-white mb-4 md:mb-6">Latest Audio Market Releases</h2>
             <div className="space-y-4 md:space-y-6">
-              {mockAudioItems.map((audio) => (
+              {audioLoading && (
+                <div className="flex items-center justify-center h-32">
+                  <div className="w-8 h-8 border-t-2 border-b-2 border-[rgb(var(--accent-primary))] rounded-full animate-spin"></div>
+                </div>
+              )}
+              {audioError && !audioLoading && (
+                <div className="p-4 rounded-lg bg-red-500/10 text-red-300 border border-red-500/20">{audioError}</div>
+              )}
+              {!audioLoading && !audioError && audioFeed.map((audio) => (
                 <div
-                  key={audio.id}
+                  key={audio._id}
                   className="flex flex-col sm:flex-row bg-gray-900/80 border border-white/10 rounded-xl overflow-hidden shadow-lg hover:shadow-[rgb(var(--accent-primary))]/10 transition-all"
                 >
                   {/* Cover Image */}
                   <div className="w-full h-48 sm:w-40 sm:h-40 relative flex-shrink-0">
                     <Image
-                      src={audio.cover}
+                      src={audio.coverImage || '/placeholder.png'}
                       alt={audio.title}
                       fill
                       className="object-cover rounded-t-xl sm:rounded-l-xl sm:rounded-tr-none"
@@ -797,22 +828,22 @@ export default function WriterDashboard() {
                     <div>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-2">
                         <span className="font-semibold text-white text-base md:text-lg line-clamp-1">{audio.title}</span>
-                        <span className="sm:ml-auto text-xs text-gray-400">{audio.createdAt}</span>
+                        <span className="sm:ml-auto text-xs text-gray-400">{audio.createdAt ? new Date(audio.createdAt).toLocaleDateString() : ''}</span>
                       </div>
                       <div className="text-xs md:text-sm text-gray-400 mb-1">{audio.description}</div>
-                      <div className="text-xs text-gray-500 mb-2">by {audio.creator}</div>
-                      <div className="text-gray-300 text-xs md:text-sm line-clamp-2 mb-4">{audio.summary}</div>
+                      <div className="text-xs text-gray-500 mb-2">by {audio.creatorName || audio.creatorAddress}</div>
+                      <div className="text-gray-300 text-xs md:text-sm line-clamp-2 mb-4">{/* optional summary */}</div>
                     </div>
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 mt-2">
                       <button
-                        onClick={() => play({ title: audio.title, audioUrl: audio.downloadUrl, coverImage: audio.cover })}
+                        onClick={() => play({ title: audio.title, audioUrl: audio.audioUrl || `/api/audio/submissions?id=${audio._id}`, coverImage: audio.coverImage })}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors w-full sm:w-auto justify-center"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-6.518-3.89A1 1 0 007 8.618v6.764a1 1 0 001.234.97l6.518-1.872A1 1 0 0016 13.382V10.618a1 1 0 00-1.248-.95z" /></svg>
                         <span>Play</span>
                       </button>
                       <a
-                        href={audio.downloadUrl}
+                        href={audio.audioUrl || `/api/audio/submissions?id=${audio._id}`}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[rgb(var(--accent-primary))] to-[rgb(var(--accent-secondary))] text-white font-semibold hover:opacity-90 transition-all w-full sm:w-auto justify-center"
                         download
                       >
@@ -823,6 +854,9 @@ export default function WriterDashboard() {
                   </div>
                 </div>
               ))}
+              {!audioLoading && !audioError && audioFeed.length === 0 && (
+                <div className="p-4 rounded-lg bg-white/5 text-gray-300 border border-white/10">No audio uploads yet.</div>
+              )}
             </div>
             {/* More Button for Explore */}
             <div className="flex justify-center mt-4 md:mt-6">
